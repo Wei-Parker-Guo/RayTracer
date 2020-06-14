@@ -132,6 +132,10 @@ add_subdirectory(glew)
 include_directories(glew/include)
 # set_property( TARGET glew APPEND_STRING PROPERTY COMPILE_FLAGS -w )
 
+# assimp
+add_subdirectory(assimp-5.0.1)
+include_directories(assimp-5.0.1/include)
+
 #-------------------------------------------------------------------------------
 # Add subdirectories
 #-------------------------------------------------------------------------------

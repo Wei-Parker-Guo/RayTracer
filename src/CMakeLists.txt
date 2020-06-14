@@ -16,6 +16,8 @@ set(ASSESSMENT2_SOURCE
     layered_toon_shader.cpp
     basic_shaders.cpp
     fast_math.cpp
+    geometry.cpp
+    ray.cpp
     main.cpp
 )
 
@@ -33,6 +35,7 @@ set(ASSESSMENT2_SOURCE
 include_directories(
   ${GLEW_INCLUDE_DIRS}
   ${GLFW_INCLUDE_DIRS}
+  ${ASSIMP_INCLUDE_DIRS}
 #  ${FREETYPE_INCLUDE_DIRS} disabled freetype since it causes malfunc on my Win10 system
 )
 
@@ -42,6 +45,7 @@ include_directories(
 link_directories(
   ${GLEW_LIBRARY_DIRS}
   ${GLFW_LIBRARY_DIRS}
+  ${ASSIMP_LIBRARY_DIRS}
 #  ${CGL_LIBRARY_DIRS}
 #  ${FREETYPE_LIBRARY_DIRS}
 )
@@ -78,6 +82,7 @@ add_executable(raytracer ${ASSESSMENT2_SOURCE})
 target_link_libraries( raytracer
     glew ${GLEW_LIBRARIES}
     glfw ${GLFW_LIBRARIES}
+    assimp ${ASSIMP_LIBRARIES}
     ${OPENGL_LIBRARIES}
 #    ${FREETYPE_LIBRARIES}
     ${CMAKE_THREADS_INIT}

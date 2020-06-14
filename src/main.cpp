@@ -21,6 +21,11 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 #include <stdlib.h>
 #include <time.h>
 
+//include assimp for model file imports
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 //shaders
 #include "basic_shaders.h"
 #include "layered_toon_shader.h"
@@ -61,35 +66,10 @@ bool using_WARD = false;
 bool using_toon = false;
 bool using_translucent = false;
 bool using_sketch = false;
-vec3 ca = {0.05f,0.05f,0.05f}; //default ambient
-vec3 cr = {0.9f, 0.5f, 0.5f}; //default diffuse
-vec3 cp = {0.9f,0.5f,0.5f}; //default specular
-float pu = 0.1f; //default pu for anisotropic shade
-float pv = 0.2f; //default pv for anisotropic shade
-int p = 64; //default p for isotropic shade
-vec3 dls[5]; //default directional light list
-vec3 dl_cs[5]; //default directional light color list
-vec3 pls[5]; //default point light list
-vec3 pl_cs[5]; //default point light color list
-vec3 cc1 = {0.4, 0.4, 0.7}; //default toon color 1
-vec3 cc2 = {0.8, 0.6, 0.6}; //default toon color 2
-float toonl = 5.0f; //default toon layer number
-float depth = 10.0f; //default depth for translucent material
-float dd = 0.5f; //default depth decay for translucent material, 0-1
-float ds = 0.01f; //default dipole scale for translucent material. 0-1
-vec2 line_dir = {0.5f, -0.5f}; //default line direction of sketch line for sketch shader
+
+string scene_file_dir = "default.fbx"; //the default scene file to render
 
 const GLFWvidmode * VideoMode_global = NULL;
-
-/* This function gets the direction and color stored in a particular light in a size 5 array. */
-void get_light(const vec3 dir_list[], const vec3 c_list[], const int light_n, vec3 dir, vec3 c){
-    dir[0] = dir_list[light_n][0];
-    dir[1] = dir_list[light_n][1];
-    dir[2] = dir_list[light_n][2];
-    c[0] = c_list[light_n][0];
-    c[1] = c_list[light_n][1];
-    c[2] = c_list[light_n][2];
-}
 
 //****************************************************
 // Simple init function
@@ -113,12 +93,34 @@ void setPixel(float x, float y, GLfloat r, GLfloat g, GLfloat b) {
     // Note that some OpenGL implementations have created gaps in the past.
 }
 
-//another function to draw a GL line given parameters, for sketch shade
+//another function to draw a GL line given parameters
 void setLine(float x, float y, float x1, float y1, GLfloat r, GLfloat g, GLfloat b){
     glBegin(GL_LINES);
     glColor3f(r, g, b);
     glVertex2f(x + 0.5f, y + 0.5f);
     glVertex2f(x1 + 0.5f, y1 + 0.5f);
+    glEnd();
+}
+
+//****************************************************
+// Draw a filled Frame
+//****************************************************
+
+//draw a render frame by looping over each pixel on screen
+void drawFrame() {
+
+    // Start drawing a list of points
+    glBegin(GL_POINTS);
+
+    //looping over the entire screen for ray tracing, assume the screen window as the camera frame
+    for (int i = 0; i < Width_global; i++) {
+        for (int j = 0; j < Height_global; j++) {
+                vec3 c_total = {0.0f, 0.0f, 0.0f};
+
+                setPixel(i,j,1.0f,1.0f,0.0f);
+            }
+    }
+
     glEnd();
 }
 
@@ -164,121 +166,14 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
                 }
             }
             break;
+        case GLFW_KEY_SPACE:
+            drawFrame();
+            break;
+
         default: 
             break;
     }
     
-}
-
-
-
-//****************************************************
-// Draw a filled circle.
-//****************************************************
-
-void drawCircle(float centerX, float centerY, float radius) {
-
-    // Start drawing a list of points
-    glBegin(GL_POINTS);
-
-    // We could eliminate wasted work by only looping over the pixels
-    // inside the sphere's radius.  But the example is more clear this
-    // way.  In general drawing an object by loopig over the whole
-    // screen is wasteful.
-
-    int minI = max(0,(int)floor(centerX-radius));
-    int maxI = min(Width_global-1,(int)ceil(centerX+radius));
-
-    int minJ = max(0,(int)floor(centerY-radius));
-    int maxJ = min(Height_global-1,(int)ceil(centerY+radius));
-
-    float mv_ratio = min(Width_global, Height_global) * 0.8 / 2.0;
-    vec3 e = {0.0f, 0.0f, 1.0f};
-
-    for (int i = 0; i < Width_global; i++) {
-        for (int j = 0; j < Height_global; j++) {
-
-            // Location of the center of pixel relative to center of sphere
-            float x = (i+0.5-centerX);
-            float y = (j+0.5-centerY);
-
-            float dist = sqrt(sqr(x) + sqr(y));
-
-            if (dist <= radius) {
-
-                // This is the front-facing Z coordinate
-                float z = sqrt(radius*radius-dist*dist);
-
-                //get normalized normal for this point
-                vec3 norm = {x, y, z};
-                vec3_norm(norm, norm);
-
-                vec3 c_total = {0.0f, 0.0f, 0.0f};
-
-                //also make light static (irrespondent to translation) for more interesting effects
-                //(This won't make sense for directional light conceptually, thus disabled for it by default)
-                //shade for each light
-                for(int a=0; a<10; a++){
-                    //retrieve directional light for first 5 iteration, spotlight for next 5
-                    vec3 l;
-                    vec3 cl;
-                    if(a<5) get_light(dls, dl_cs, a, l, cl); //raw light info
-                    //if point light recal light direction
-                    else{
-                        get_light(pls, pl_cs, a-5, l, cl);
-
-                        //move light with translation (keep static)
-                        vec3 trans = {Translation[0]/mv_ratio, Translation[1]/mv_ratio, Translation[2]/mv_ratio};
-                        vec3_add(l, l, trans);
-
-                        //if the light is inside the unit sphere don't draw, doesn't make sense
-                        if(vec3_len(l)<1) continue;
-
-                        //cal direction
-                        vec3_sub(l, l, norm);
-                    }
-
-                    //only render a nonzero light
-                    if(vec3_len(l)>0){
-                        vec3 c = {0.0f, 0.0f, 0.0f};
-
-                        //generate base lambert shade (note this step will also make the light normalized)
-                        if(!using_toon && !using_translucent) gen_lambert_shade(ca, cr, cl, norm, l, c);
-
-                        //generate phong from the previous lambertian shade, with assumed view right down z axis
-                        if(using_phong) gen_phong_shade(cl, cp, l, e, norm, p, c);
-
-                        //generate anisotropic shade with pu and pv given (Note: pu and pv has to be culled to [0-1] for this to work)
-                        //this can be used to simulate brushed metal or wooden surface, once an appropriate diffuse is given
-                        if(using_WARD) gen_WARD_anisotropic_phong_shade(cl, cp, l, e, norm, pu, pv, y, c);
-
-                        //generate toon shade if set toon options
-                        if(using_toon) gen_toon_shade(cc1, cc2, l, cl, cp, toonl, e, norm, c);
-
-                        //generate translucent shade if set translucence options
-                        if(using_translucent){
-                            gen_translucent_shade(ca, cr, cl, cp, l, e, norm, p, x, y, ds, dd, depth, c);
-                        }
-
-                        //geerate sketch shade if set sketch options
-                        if(using_sketch){
-                            gen_sketch_shade(ca, cr, cl, cp, l, e, norm, p, x, y, radius, line_dir, c);
-                        }
-
-                        //composite
-                        vec3_add(c_total, c_total, c);
-                    }
-                }
-                
-                setPixel(i, j, c_total[0], c_total[1], c_total[2]);
-                // This is amusing, but it assumes negative color values are treated reasonably.
-                // setPixel(i,j, x/radius, y/radius, z/radius );
-                
-            }
-        }
-    }
-
-    glEnd();
 }
 
 //****************************************************
@@ -286,22 +181,14 @@ void drawCircle(float centerX, float centerY, float radius) {
 //***************************************************
 
 void display( GLFWwindow* window )
-{
-    if(!using_toon && !using_sketch) glClearColor( 0.0f, 0.0f, 0.0f, 0.0f );      //clear background screen to black if not using toon/sketch shade
-    else glClearColor(1.0f, 1.0f, 1.0f, 0.0f); //clear background to white to see silhouttes of toon shade
-    
-    glClear(GL_COLOR_BUFFER_BIT);                // clear the color buffer (sets everything to black)
-    
+{   
     glMatrixMode(GL_MODELVIEW);                  // indicate we are specifying camera transformations
     glLoadIdentity();                            // make sure transformation is "zero'd"
     
     //----------------------- code to draw objects --------------------------
     glPushMatrix();
     glTranslatef (Translation[0], Translation[1], Translation[2]);
-    drawCircle(
-        Width_global / 2.0 , 
-        Height_global / 2.0 , 
-        min(Width_global, Height_global) * 0.8 / 2.0);  // present a sphere with max radius possible on screen
+    
     glPopMatrix();
     
     glfwSwapBuffers(window);
@@ -351,31 +238,6 @@ void record_token_rgb(vec3 r, const vector<string> tokens){
     r[2] = stof(tokens[3]);
 }
 
-/* This function changes the direction and color stored in a particular light in a size 5 array. */
-void change_light(vec3 dir_list[], vec3 c_list[], int light_n, const vec3 dir, const vec3 c){
-    dir_list[light_n][0] = dir[0];
-    dir_list[light_n][1] = dir[1];
-    dir_list[light_n][2] = dir[2];
-    c_list[light_n][0] = c[0];
-    c_list[light_n][1] = c[1];
-    c_list[light_n][2] = c[2];
-}
-
-void record_token_light(vec3 light_l[], vec3 light_color_l[], const vector<string> tokens){
-    //find the first available light spot and add our light, if all occupied then do nothing
-    for(int i=0; i<5; i++){
-        vec3 l;
-        vec3 cl;
-        get_light(dls, dl_cs, i, l, cl);
-        if(vec3_len(l)==0){
-            vec3 nl = {stof(tokens[1]), stof(tokens[2]), stof(tokens[3])};
-            vec3 ncl = {stof(tokens[4]), stof(tokens[5]), stof(tokens[6])};
-            change_light(light_l, light_color_l, i, nl, ncl);
-            return;
-        }
-    }
-}
-
 void read_cmd_tokens(const vector<string> tokens){
 
     switch (get_token_code(tokens[0])) {
@@ -385,29 +247,60 @@ void read_cmd_tokens(const vector<string> tokens){
 
 }
 
-int main(int argc, char *argv[]) {
+//method to check if a file exists
+bool file_exists(const char* filename) {
+    ifstream infile(filename);
+    return infile.good();
+}
 
-    //take user input
-    char buffer[32];
-    printf("Enter Options File (max 32 chars): ");
-    scanf(" %32s", buffer);
-    printf("Initialzed using option file [%s]\n", buffer);
+//method to load a scene
+bool load_scene(const string& file) {
+    // Create an instance of the Importer class
+    Assimp::Importer importer;
 
-    //initialize lights
-    vec3 zero = {0.0f, 0.0f, 0.0f};
-    for(int i=0; i<5; i++){
-        change_light(dls, dl_cs, 0, zero, zero);
-        change_light(pls, pl_cs, 0, zero, zero);
+    // And have it read the given file with some example postprocessing
+    // Usually - if speed is not the most important aspect for you - you'll
+    // probably to request more postprocessing than we do in this example.
+    const aiScene* scene = importer.ReadFile(file,
+        aiProcess_CalcTangentSpace |
+        aiProcess_Triangulate |
+        aiProcess_JoinIdenticalVertices |
+        aiProcess_SortByPType);
+
+    // If the import failed, report it
+    if (!scene) {
+        printf(importer.GetErrorString());
+        return false;
     }
 
+    //analyze and record the data we need
+
+    // We're done. Everything will be cleaned up by the importer destructor
+    return true;
+}
+
+int main(int argc, char *argv[]) {
+
+    //take user input of scene file and options file
+    char buffer[32];
+    printf("Enter Scene File (max 32 chars): ");
+    scanf(" %32s", buffer);
+    printf("Initialized using scene file [%s]\n", buffer);
+    //check if file exists
+    if (!file_exists(buffer)) {
+        printf("Can't open the scene file, using default.\n");
+    }
+    else scene_file_dir = buffer;
+
+    char buffer1[32];
+    printf("Enter Option File (max 32 chars): ");
+    scanf(" %32s", buffer1);
+    printf("Initialized using option file [%s]\n", buffer1);
+
     //open option file and record variables
-    ifstream input_stream(buffer);
+    ifstream input_stream(buffer1);
     if(!input_stream){
         printf("Can't open the option file, using default.");
-        //add a default directional light
-        vec3 l = {1.0f, 1.0f, 0.8f};
-        vec3 cl = {0.8f, 0.8f, 0.8f};
-        change_light(dls, dl_cs, 0, l, cl);
     }
     
     //read lines for values
@@ -424,10 +317,13 @@ int main(int argc, char *argv[]) {
         read_cmd_tokens(split_cmds);
     }
 
+    //load scene
+    load_scene(scene_file_dir);
+
     //This initializes glfw
     initializeRendering();
     
-    GLFWwindow* window = glfwCreateWindow( Width_global, Height_global, "Computer Graphics", NULL, NULL );
+    GLFWwindow* window = glfwCreateWindow( Width_global, Height_global, "RayTracer", NULL, NULL );
     if ( !window )
     {
         cerr << "Error on window creating" << endl;

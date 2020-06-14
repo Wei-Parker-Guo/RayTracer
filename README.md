@@ -7,6 +7,7 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 # References (Books & Used Libs Mainly)
 1. GLFW Version 3.2.1
 2. GLEW
+3. ASSIMP Version 5.0.1
 3. linmath.h under GLFW Dependencies
 4. Code references are enclosed as inline comments.
 
@@ -21,8 +22,9 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 8. there is a template options.txt inside src, you can copy, rename and modify it to start quicker.
 
 # Keyboard features
+1. [Space] Start a new rendering frame
 
-# Render Results for Assessment 1 (Phong Sphere)
+# Render Results
 
 # Features
 
