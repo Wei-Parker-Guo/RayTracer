@@ -117,7 +117,7 @@ void drawFrame() {
         for (int j = 0; j < Height_global; j++) {
                 vec3 c_total = {0.0f, 0.0f, 0.0f};
 
-                setPixel(i,j,1.0f,1.0f,0.0f);
+                setPixel(i,j,1.0f,0.0f,0.0f);
             }
     }
 

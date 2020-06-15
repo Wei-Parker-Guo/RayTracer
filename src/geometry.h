@@ -16,11 +16,23 @@ class Surface {
     public:
 
     //method to determine whether the geometry is hit by the rat
-    virtual bool hit(const Ray r, const float t0, const float t1, hitrec rec);
+    virtual bool hit(const Ray& r, const float t0, const float t1, hitrec& rec);
 
     //method to determine bounding box of the geometry
     virtual void bounding_box(box b);
     
+};
+
+//class representing a triangle
+class Triangle : public Surface {
+    private:
+        //coordinates of the triangle, global space right handed
+        vec3 a;
+        vec3 b;
+        vec3 c;
+
+    public:
+        bool hit(const Ray& r, const float t0, const float t1, hitrec& rec);
 };
 
 #endif

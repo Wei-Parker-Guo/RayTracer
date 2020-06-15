@@ -28,6 +28,47 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 
 # Features
 
+Accepted Model Files:
+
+Collada ( .dae, .xml )<br/>
+Blender ( .blend )<br/>
+Biovision BVH ( .bvh )<br/>
+3D Studio Max 3DS ( .3ds )<br/>
+3D Studio Max ASE ( .ase )<br/>
+Wavefront Object ( .obj )<br/>
+Stanford Polygon Library ( .ply )<br/>
+AutoCAD DXF ( .dxf )<br/>
+IFC-STEP ( .ifc )<br/>
+Neutral File Format ( .nff )<br/>
+Sense8 WorldToolkit ( .nff )<br/>
+Valve Model ( .smd, .vta )<br/>
+Quake I ( .mdl )<br/>
+Quake II ( .md2 )<br/>
+Quake III ( .md3 )<br/>
+Quake 3 BSP ( .pk3 )<br/>
+RtCW ( .mdc )<br/>
+Doom 3 ( .md5mesh, .md5anim, .md5camera )<br/>
+DirectX X ( .x )<br/>
+Quick3D ( .q3o, .q3s )<br/>
+Raw Triangles ( .raw )<br/>
+AC3D ( .ac )<br/>
+Stereolithography ( .stl )<br/>
+Autodesk DXF ( .dxf )<br/>
+Irrlicht Mesh ( .irrmesh, .xml )<br/>
+Irrlicht Scene ( .irr, .xml )<br/>
+Object File Format ( .off )<br/>
+Terragen Terrain ( .ter )<br/>
+3D GameStudio Model ( .mdl )<br/>
+3D GameStudio Terrain ( .hmp )<br/>
+Ogre ( .mesh.xml, .skeleton.xml, .material )<br/>
+Milkshape 3D ( .ms3d )<br/>
+LightWave Model ( .lwo )<br/>
+LightWave Scene ( .lws )<br/>
+Modo Model ( .lxo )<br/>
+CharacterStudio Motion ( .csm )<br/>
+Stanford Ply ( .ply )<br/>
+TrueSpace ( .cob, .scn )
+
 Command Line Options:
 
 
