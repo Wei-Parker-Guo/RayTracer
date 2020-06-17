@@ -33,6 +33,12 @@ void vec3_fraction(vec3 r, const vec3 a, const vec4 b){
     r[2] = a[2] * b[2];
 }
 
+void vec3_deep_copy(vec3 r, const vec3 a) {
+    r[0] = a[0];
+    r[1] = a[1];
+    r[2] = a[2];
+}
+
 void rgb_to_grayscale(vec3 r, const vec3 rgb){
     for(int i=0; i < 3; i++){
         r[i] = 0.3f * rgb[0] + 0.59f * rgb[1] + 0.11f * rgb[2];

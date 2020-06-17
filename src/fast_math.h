@@ -24,6 +24,9 @@ void vec3_cull(vec3 r);
 Basically times each row with each other. */
 void vec3_fraction(vec3 r, const vec3 a, const vec4 b);
 
+//a simple function to make a deep copy of a vec3
+void vec3_deep_copy(vec3 r, const vec3 a);
+
 // A simple function that takes an rgb color and transform it to three even channeled grayscale color
 void rgb_to_grayscale(vec3 r, const vec3 rgb);
 

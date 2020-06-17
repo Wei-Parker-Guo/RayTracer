@@ -106,8 +106,39 @@ void setLine(float x, float y, float x1, float y1, GLfloat r, GLfloat g, GLfloat
 }
 
 //****************************************************
-// Draw a filled Frame
+// Draw a filled Frame with loaded scene
 //****************************************************
+
+//method to load a scene
+bool load_scene(const string& file) {
+    // Create an instance of the Importer class
+    Assimp::Importer importer;
+
+    // And have it read the given file with some example postprocessing
+    // Usually - if speed is not the most important aspect for you - you'll
+    // probably to request more postprocessing than we do in this example.
+    const aiScene* scene = importer.ReadFile(file,
+        aiProcess_CalcTangentSpace |
+        aiProcess_Triangulate |
+        aiProcess_JoinIdenticalVertices |
+        aiProcess_SortByPType);
+
+    // If the import failed, report it
+    if (!scene) {
+        printf(importer.GetErrorString());
+        return false;
+    }
+
+    //analyze and record the data we need
+
+    //load meshes and create geometry classes from them
+    for (int i = 0; i < scene->mNumMeshes; i++) {
+        aiMesh* mesh = scene->mMeshes[i];
+    }
+
+    // We're done. Everything will be cleaned up by the importer destructor
+    return true;
+}
 
 //draw a render frame by looping over each pixel on screen
 void drawFrame() {
@@ -261,39 +292,13 @@ bool file_exists(const char* filename) {
     return infile.good();
 }
 
-//method to load a scene
-bool load_scene(const string& file) {
-    // Create an instance of the Importer class
-    Assimp::Importer importer;
-
-    // And have it read the given file with some example postprocessing
-    // Usually - if speed is not the most important aspect for you - you'll
-    // probably to request more postprocessing than we do in this example.
-    const aiScene* scene = importer.ReadFile(file,
-        aiProcess_CalcTangentSpace |
-        aiProcess_Triangulate |
-        aiProcess_JoinIdenticalVertices |
-        aiProcess_SortByPType);
-
-    // If the import failed, report it
-    if (!scene) {
-        printf(importer.GetErrorString());
-        return false;
-    }
-
-    //analyze and record the data we need
-
-    // We're done. Everything will be cleaned up by the importer destructor
-    return true;
-}
-
 int main(int argc, char *argv[]) {
 
     //take user input of scene file and options file
     char buffer[32];
-    printf("Enter Scene File (max 32 chars): ");
+    printf("Enter Scene Folder (max 32 chars): ");
     scanf(" %32s", buffer);
-    printf("Initialized using scene file [%s]\n", buffer);
+    printf("Initialized using scene folder [%s]\n", buffer);
     //check if file exists
     if (!file_exists(buffer)) {
         printf("Can't open the scene file, using default.\n");

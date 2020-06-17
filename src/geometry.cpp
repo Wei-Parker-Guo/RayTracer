@@ -11,6 +11,32 @@ void Surface::bounding_box(box b){
 
 }
 
+bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
+    //TO-DO: use bounding box to short chain this algorithm
+
+
+    for (int i = 0; i < this->faces.size(); i++) {
+        aiFace face = faces[i];
+        //construct the face got and figure out if it has been hit, if triangle then use the triangle hit method explicitly
+        if (face.mNumIndices == 3) {
+            Triangle triangle = Triangle(this->vertices[face.mIndices[0]].pos, this->vertices[face.mIndices[1]].pos, this->vertices[face.mIndices[2]].pos);
+            bool hit = triangle.hit(r, t0, t1, rec);
+            if (hit) return true;
+        }
+    }
+    return false;
+}
+
+void Mesh::bounding_box(box b) {
+
+}
+
+Triangle::Triangle(const vec3 a, const vec3 b, const vec3 c) {
+    vec3_deep_copy(this->a, a);
+    vec3_deep_copy(this->b, b);
+    vec3_deep_copy(this->c, c);
+}
+
 bool Triangle::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     //construct the matrix
     float a = this->a[0] - this->b[0];
