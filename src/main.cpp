@@ -60,6 +60,9 @@ int  SizeY_saved_global;
 int  PosX_saved_global;
 int  PosY_saved_global;
 
+//status
+bool rendering = false;
+
 //parameters
 bool using_phong = true;
 bool using_WARD = false;
@@ -122,6 +125,9 @@ void drawFrame() {
     }
 
     glEnd();
+
+    //finished rendering, set status ready for another render
+    rendering = false;
 }
 
 //****************************************************
@@ -167,6 +173,8 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
             }
             break;
         case GLFW_KEY_SPACE:
+            if (rendering) break;
+            rendering = true;
             drawFrame();
             break;
 

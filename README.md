@@ -18,8 +18,15 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 4. cmake ..
 5. make
 6. run the raytracer.exe in build
-7. if you wish to use custom setup for options, type the options line by line in a txt file in build and specify it when program opens.
-8. there is a template options.txt inside src, you can copy, rename and modify it to start quicker.
+7. Supply the root folder of your scene to load, otherwise default to existent one called testScene (make sure your textures and materials are named properly!)
+8. if you wish to use custom setup for options, type the options line by line in a txt file in build and specify it when program opens.
+9. there is a template options.txt inside src, you can copy, rename and modify it to start quicker.
+
+# Dummy Program Logic Flow
+
+<p align="center">
+  <img width="960" height="960" src="docs&images/dummy_logic_flow.jpg">
+</p>
 
 # Keyboard features
 1. [Space] Start a new rendering frame
