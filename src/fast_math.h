@@ -30,4 +30,7 @@ void vec3_deep_copy(vec3 r, const vec3 a);
 // A simple function that takes an rgb color and transform it to three even channeled grayscale color
 void rgb_to_grayscale(vec3 r, const vec3 rgb);
 
+//method to zero out a vector
+void vec3_zero(vec3 r);
+
 #endif

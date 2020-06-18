@@ -46,3 +46,9 @@ void rgb_to_grayscale(vec3 r, const vec3 rgb){
 }
 
 float sqr(float x) { return x*x; }
+
+void vec3_zero(vec3 r) {
+    r[0] = 0.0f;
+    r[1] = 0.0f;
+    r[2] = 0.0f;
+}

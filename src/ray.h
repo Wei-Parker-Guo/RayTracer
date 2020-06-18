@@ -13,7 +13,7 @@ class Ray {
     float t;
 
     //this method gets a point on the ray according to t given, p = e + td
-    void get_point(const float t, vec3 p);
+    void get_point(const float t, vec3 p) const;
 };
 
 #endif

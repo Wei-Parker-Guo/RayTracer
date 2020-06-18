@@ -52,6 +52,7 @@ class Mesh : public Surface {
         std::vector<Texture> textures;
 
     public:
+        Mesh(const aiMesh* mesh, const std::vector<Texture>& textures);
         bool hit(const Ray& r, const float t0, const float t1, hitrec& rec);
         void bounding_box(box b);
 };
@@ -60,8 +61,11 @@ class Mesh : public Surface {
 class Polygon : public Surface {
     private:
         std::vector<Vertex> vertices;
+        vec3 norm;
 
     public:
+        //a constructor that takes a face and total vertices of a mesh to construct the polygon
+        Polygon(const aiFace &face, const std::vector<Vertex> &total_vertices);
         bool hit(const Ray& r, const float t0, const float t1, hitrec& rec);
 };
 

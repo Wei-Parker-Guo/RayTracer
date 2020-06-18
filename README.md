@@ -12,6 +12,9 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 4. Code references are enclosed as inline comments.
 
 # USAGE
+
+This project is platform independant and uses cmake to build. You do need an Nvidia GTX GPU if you plan to build the Cuda version.
+
 1. ‘cd’ into your assignment directory, type into the Terminal the following step by step
 2. mkdir build
 3. cd build

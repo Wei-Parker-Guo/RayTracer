@@ -11,6 +11,25 @@ void Surface::bounding_box(box b){
 
 }
 
+Mesh::Mesh(const aiMesh* mesh, const std::vector<Texture> &textures) {
+    //record vertices
+    for (int i = 0; i < mesh->mNumVertices; i++) {
+        Vertex vert;
+        vec3 pos = { mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
+        vec3 norm = { mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z };
+        vec3_deep_copy(vert.pos, pos);
+        vec3_deep_copy(vert.norm, norm);
+        vert.uv[0] = mesh->mTextureCoords[i]->x;
+        vert.uv[1] = mesh->mTextureCoords[i]->y;
+        this->vertices.push_back(vert);
+    }
+    //record faces
+    for (int i = 0; i < mesh->mNumFaces; i++) {
+        this->faces.push_back(mesh->mFaces[i]);
+    }
+    this->textures = textures;
+}
+
 bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     //TO-DO: use bounding box to short chain this algorithm
 
@@ -23,12 +42,67 @@ bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
             bool hit = triangle.hit(r, t0, t1, rec);
             if (hit) return true;
         }
+        //treat all other faces (including convex situations) like a polygon
+        else {
+            Polygon polygon = Polygon(face, this->vertices);
+            bool hit = polygon.hit(r, t0, t1, rec);
+            if (hit) return true;
+        }
     }
     return false;
 }
 
 void Mesh::bounding_box(box b) {
 
+}
+
+Polygon::Polygon(const aiFace& face, const std::vector<Vertex>& total_vertices) {
+    vec3_zero(this->norm);
+    for (int i = 0; i < face.mNumIndices; i++) {
+        int index = face.mIndices[i];
+        Vertex vert;
+        //deep copy the info
+        vec3_deep_copy(vert.norm, total_vertices[index].norm);
+        vec3_deep_copy(vert.pos, total_vertices[index].pos);
+        vec3_deep_copy(vert.uv, total_vertices[index].uv);
+        this->vertices.push_back(vert);
+        vec3_add(this->norm, this->norm, vert.norm);
+    }
+    vec3_norm(this->norm, this->norm); //average the vertex norms to get the surface norm
+}
+
+//The WRF method to check if a point is inside a ploygon (Jordan Curve Theorem)
+//referenced and adapted from https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html
+int p_in_poly(const int nvert, const std::vector<Vertex>& vertices, const vec3 p) {
+    int i, j, c = 0;
+    for (i = 0, j = nvert - 1; i < nvert; j = i++) {
+        if (((vertices[i].pos[1] > p[1]) != (vertices[j].pos[1] > p[1])) &&
+            (p[0] < (vertices[j].pos[0] - vertices[i].pos[0]) * (p[1] - vertices[i].pos[1]) / (vertices[j].pos[1] - vertices[i].pos[1]) + vertices[i].pos[0]))
+            c = !c;
+    }
+    return c;
+}
+
+//this method is implemented by the "project and count intersects" method for the xy plane
+bool Polygon::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
+    //check if the ray cross the polygon plane
+    float dn = vec3_mul_inner(r.d, this->norm);
+    //if d.n = 0 then it's parallel to the plane and has no intersect, return false immediately
+    if (dn == 0) return false;
+    vec3 a;
+    vec3_sub(a, this->vertices[0].pos, r.e);
+    //get the point on the plane
+    float t = vec3_mul_inner(a, this->norm) / dn;
+    if (t<t0 || t>t1) return false; //return immediately if our of range
+
+    //send the ray and detect for intersects
+    vec3 p;
+    r.get_point(t, p);
+    //get count of intersects
+    int count = p_in_poly(this->vertices.size(), this->vertices, p);
+    if (count) return true;
+
+    return false;
 }
 
 Triangle::Triangle(const vec3 a, const vec3 b, const vec3 c) {
