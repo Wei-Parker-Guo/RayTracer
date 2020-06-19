@@ -27,7 +27,7 @@ void vec3_cull(vec3 r){
     r[2] = std::min(1.0f, r[2]);
 }
 
-void vec3_fraction(vec3 r, const vec3 a, const vec4 b){
+void vec3_fraction(vec3 r, const vec3 a, const vec3 b){
     r[0] = a[0] * b[0];
     r[1] = a[1] * b[1];
     r[2] = a[2] * b[2];

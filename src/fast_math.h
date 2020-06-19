@@ -22,7 +22,7 @@ void vec3_cull(vec3 r);
 
 /* A simple function that uses a vector to fraction another.
 Basically times each row with each other. */
-void vec3_fraction(vec3 r, const vec3 a, const vec4 b);
+void vec3_fraction(vec3 r, const vec3 a, const vec3 b);
 
 //a simple function to make a deep copy of a vec3
 void vec3_deep_copy(vec3 r, const vec3 a);

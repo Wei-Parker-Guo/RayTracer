@@ -15,7 +15,6 @@
 STRONGLY NOT RECOMMENDED for GLFW setup */
 #include <windows.h>
 #endif
-#include "linmath.h" //include GLFW's linear math for vector manipulation
 #include "fast_math.h" //include a faster version of some math ops we wrote
 #include <GLFW/glfw3.h>
 #include <stdlib.h>
@@ -25,6 +24,9 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+
+//pipelines
+#include "rasterizer.h"
 
 //shaders
 #include "basic_shaders.h"
@@ -71,6 +73,8 @@ bool using_translucent = false;
 bool using_sketch = false;
 
 string scene_file_dir = "default.fbx"; //the default scene file to render
+
+Rasterizer rasterizer = Rasterizer(Width_global, Height_global); //a single rasterizer pipeline (TODO: enable multi-pipeline rendering for quicker rerender)
 
 const GLFWvidmode * VideoMode_global = NULL;
 
@@ -140,25 +144,75 @@ bool load_scene(const string& file) {
     return true;
 }
 
-//draw a render frame by looping over each pixel on screen
+//draw a rendered frame by looping over each pixel on the rasterizer
 void drawFrame() {
 
     // Start drawing a list of points
     glBegin(GL_POINTS);
 
-    //looping over the entire screen for ray tracing, assume the screen window as the camera frame
-    for (int i = 0; i < Width_global; i++) {
-        for (int j = 0; j < Height_global; j++) {
-                vec3 c_total = {0.0f, 0.0f, 0.0f};
-
-                setPixel(i,j,1.0f,0.0f,0.0f);
-            }
+    //looping over the entire rasterizer buffer and draw pixels
+    for (int i = 0; i < rasterizer.getWidth(); i++) {
+        for (int j = 0; j < rasterizer.getHeight(); j++) {
+            vec3 c;
+            rasterizer.getColor(i, j, c);
+            setPixel(i, j, c[0], c[1], c[2]);
+        }
     }
 
     glEnd();
 
     //finished rendering, set status ready for another render
     rendering = false;
+}
+
+//****************************************************
+// function that does the actual drawing of stuff
+//***************************************************
+
+void display(GLFWwindow* window)
+{
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT); //clear buffer
+
+    glMatrixMode(GL_MODELVIEW);                  // indicate we are specifying camera transformations
+    glLoadIdentity();                            // make sure transformation is "zero'd"
+
+    //----------------------- code to draw objects --------------------------
+    glPushMatrix();
+    glTranslatef(Translation[0], Translation[1], Translation[2]);
+
+    drawFrame();
+
+    glPopMatrix();
+
+    glfwSwapBuffers(window);
+
+}
+
+//render the current frame and push data to rasterizer, render the realtime progress in the window specified
+void renderFrame(GLFWwindow* window) {
+    //resize rasterizer if necessary
+    rasterizer.resize(Width_global, Height_global);
+    //draw
+    for (int i = 0; i < rasterizer.getWidth(); i++) {
+        for (int j = 0; j < rasterizer.getHeight(); j++) {
+            //a new color sequence for each pixel
+            colorseq cs;
+
+
+            //render a test graph
+            //test case of rendering alternate pixels
+            color c;
+            if (((i % 100 < 50) && j % 100 < 50) || (!(i % 100 < 50) && j % 100 > 50)) c = { 48 / 255.0f, 49 / 255.0f, 54 / 255.0f };
+            else c = { 32 / 255.0f,  33 / 255.0f,  38 / 255.0f };
+            cs.push_back(c);
+            rasterizer.setColor(i, j, cs);
+
+            //display the render result by block progressively
+            if (i % 100 == 0 && j % 100 == 0) display(window);
+        }
+        rendering = false;
+    }
 }
 
 //****************************************************
@@ -206,31 +260,12 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         case GLFW_KEY_SPACE:
             if (rendering) break;
             rendering = true;
-            drawFrame();
+            renderFrame(window);
             break;
 
         default: 
             break;
     }
-    
-}
-
-//****************************************************
-// function that does the actual drawing of stuff
-//***************************************************
-
-void display( GLFWwindow* window )
-{   
-    glMatrixMode(GL_MODELVIEW);                  // indicate we are specifying camera transformations
-    glLoadIdentity();                            // make sure transformation is "zero'd"
-    
-    //----------------------- code to draw objects --------------------------
-    glPushMatrix();
-    glTranslatef (Translation[0], Translation[1], Translation[2]);
-    
-    glPopMatrix();
-    
-    glfwSwapBuffers(window);
     
 }
 
@@ -361,7 +396,7 @@ int main(int argc, char *argv[]) {
                 
     while( !glfwWindowShouldClose( window ) ) // main loop to draw object again and again
     {
-        display( window );
+        //display( window );
 
         glfwPollEvents();        
     }
