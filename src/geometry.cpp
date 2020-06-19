@@ -100,7 +100,10 @@ bool Polygon::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     r.get_point(t, p);
     //get count of intersects
     int count = p_in_poly(this->vertices.size(), this->vertices, p);
-    if (count) return true;
+    if (count) {
+        rec.push_back(t);
+        return true;
+    }
 
     return false;
 }

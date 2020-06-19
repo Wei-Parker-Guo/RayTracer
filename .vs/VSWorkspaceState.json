@@ -1,8 +1,11 @@
 {
   "ExpandedNodes": [
     "",
+    "\\assimp-5.0.1",
+    "\\assimp-5.0.1\\tools",
+    "\\assimp-5.0.1\\tools\\assimp_view",
     "\\src"
   ],
-  "SelectedNode": "\\src\\fast_math.cpp",
+  "SelectedNode": "\\assimp-5.0.1\\tools\\assimp_view\\assimp_view.cpp",
   "PreviewInSolutionExplorer": false
 }

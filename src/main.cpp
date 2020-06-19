@@ -51,8 +51,8 @@ using namespace std;
 
 GLfloat Translation[3] = {0.0f, 0.0f, 0.0f};
 bool Auto_strech = false;
-int  Width_global = 400;
-int  Height_global = 400;
+int  Width_global = 960;
+int  Height_global = 540;
 
 int  SizeX_saved_global;
 int  SizeY_saved_global;
