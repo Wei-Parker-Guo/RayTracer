@@ -16,7 +16,7 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 
 This project is platform independant and uses cmake to build. You do need an Nvidia GTX GPU if you plan to build the Cuda version.
 
-""[General Build Steps]""
+## [General Build Steps]
 
 1. ‘cd’ into your clone directory, type into the Terminal the following step by step
 2. mkdir build
@@ -28,7 +28,7 @@ This project is platform independant and uses cmake to build. You do need an Nvi
 8. if you wish to use custom setup for options, type the options line by line in a txt file in build and specify it when program opens.
 9. there is a template options.txt inside src, you can copy, rename and modify it to start quicker.
 
-""[For Windows Visual Studio Build Only (Exact Step Repulication of Implementer's Build Process)]""
+## [For Windows Visual Studio Build Only (Exact Step Repulication of Implementer's Build Process)]
 
 1. ‘cd’ into your clone directory, type into the Terminal the following step by step
 2. mkdir build
