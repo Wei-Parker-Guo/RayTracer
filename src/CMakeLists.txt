@@ -18,6 +18,7 @@ set(ASSESSMENT2_SOURCE
     fast_math.cpp
     geometry.cpp
     ray.cpp
+    rasterizer.cpp
     main.cpp
 )
 

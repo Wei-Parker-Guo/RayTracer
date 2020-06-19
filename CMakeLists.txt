@@ -124,8 +124,8 @@ find_package(Threads REQUIRED)
 ##find_package(Freetype REQUIRED)
 
 # glfw
-add_subdirectory(glfw-3.2.1)
-include_directories(glfw-3.2.1/include)
+add_subdirectory(glfw-3.3.2)
+include_directories(glfw-3.3.2/include)
 
 # glew
 add_subdirectory(glew)

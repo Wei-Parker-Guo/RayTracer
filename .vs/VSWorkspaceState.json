@@ -1,11 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\assimp-5.0.1",
-    "\\assimp-5.0.1\\tools",
-    "\\assimp-5.0.1\\tools\\assimp_view",
-    "\\src"
+    "\\glfw-3.2.1"
   ],
-  "SelectedNode": "\\assimp-5.0.1\\tools\\assimp_view\\assimp_view.cpp",
+  "SelectedNode": "\\src",
   "PreviewInSolutionExplorer": false
 }
