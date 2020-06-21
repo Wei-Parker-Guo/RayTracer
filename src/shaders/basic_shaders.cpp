@@ -3,10 +3,7 @@
 /* generate lambertian shade with another light source
  * equation: c = cr(ca + clmax(0, n.l))
  */
-void gen_lambert_shade(const vec3 ca, const vec3 cr, const vec3 cl, const vec3 n, vec3 l, vec3 c){
-    //normalize light vector
-    vec3_norm(l, l);
-
+void gen_lambert_shade(const vec3 ca, const vec3 cr, const vec3 cl, const vec3 n, const vec3 l, vec3 c){
     //reflectance
     float r = std::max(0.0f, vec3_mul_inner(n,l));
     vec3_scale(c, cl, r);

@@ -20,19 +20,19 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 #include <stdlib.h>
 #include <time.h>
 
+//logger-related imp
+#include <chrono>
+
 //include assimp for model file imports
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+//memory allocators
+#include "raypool.h"
+
 //pipelines
 #include "rasterizer.h"
-
-//shaders
-#include "basic_shaders.h"
-#include "layered_toon_shader.h"
-#include "translucent_shader.h"
-#include "sketch_shader.h"
 
 #ifdef _WIN32
 static DWORD lastTime;
@@ -129,7 +129,7 @@ bool load_scene(const string& file) {
 
     // If the import failed, report it
     if (!scene) {
-        printf(importer.GetErrorString());
+        printf("%s\n", importer.GetErrorString());
         return false;
     }
 
@@ -191,6 +191,28 @@ void display(GLFWwindow* window)
 
 //render the current frame and push data to rasterizer, render the realtime progress in the window specified
 void renderFrame(GLFWwindow* window) {
+    if (rendering) return;
+    rendering = true;
+
+    //tests for the ray memory allocator
+    printf("Allocator test: Creating and allocating 10000 rays with page size of 64 rays.\n");
+    RayPool ray_pool = RayPool(64);
+    for (int i = 0; i < 10000; i++) {
+        Ray* new_r = (Ray*)malloc(sizeof(Ray));
+        new_r->depth = i;
+        ray_pool.push(new_r);
+    }
+    printf("Destroying all of them.\n");
+    for (int i = 0; i < 10000; i++) {
+        Ray* r = ray_pool.pop();
+        printf("%d", r->depth);
+        free(r);
+    }
+
+    //start the logger for render time
+    printf("\nRendering starts.\n");
+    auto time_start = std::chrono::high_resolution_clock::now();
+
     //resize rasterizer if necessary
     rasterizer.resize(Width_global, Height_global);
     //draw
@@ -211,8 +233,17 @@ void renderFrame(GLFWwindow* window) {
             //display the render result by block progressively
             if (i % 100 == 0 && j % 100 == 0) display(window);
         }
-        rendering = false;
     }
+
+    //display final results
+    display(window);
+
+    //end logger and output logs
+    auto time_stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(time_stop - time_start);
+    printf("Rendering finished with total duration of %f seconds.\n", duration.count() / 1000.0f);
+
+    rendering = false;
 }
 
 //****************************************************
@@ -258,9 +289,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
             }
             break;
         case GLFW_KEY_SPACE:
-            if (rendering) break;
-            rendering = true;
-            renderFrame(window);
+            if (action == GLFW_RELEASE) renderFrame(window);
             break;
 
         default: 
@@ -305,13 +334,6 @@ token_code get_token_code(string const& token){
     return not_specified;
 }
 
-//function to record rgb of a given cmd token
-void record_token_rgb(vec3 r, const vector<string> tokens){
-    r[0] = stof(tokens[1]);
-    r[1] = stof(tokens[2]);
-    r[2] = stof(tokens[3]);
-}
-
 void read_cmd_tokens(const vector<string> tokens){
 
     switch (get_token_code(tokens[0])) {
@@ -348,7 +370,7 @@ int main(int argc, char *argv[]) {
     //open option file and record variables
     ifstream input_stream(buffer1);
     if(!input_stream){
-        printf("Can't open the option file, using default.");
+        printf("Can't open the option file, using default.\n");
     }
     
     //read lines for values

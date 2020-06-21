@@ -59,7 +59,7 @@ class Mesh : public Surface {
 
 //class representing an n-vert polygon
 class Polygon : public Surface {
-    private:
+    public:
         std::vector<Vertex> vertices;
         vec3 norm;
 
@@ -71,11 +71,12 @@ class Polygon : public Surface {
 
 //class representing a triangle
 class Triangle : public Surface {
-    private:
+    public:
         //coordinates of the triangle, global space right handed
         vec3 a;
         vec3 b;
         vec3 c;
+        vec3 norm;
 
     public:
         Triangle(const vec3 a, const vec3 b, const vec3 c);

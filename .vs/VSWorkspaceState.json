@@ -1,8 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\glfw-3.2.1"
+    "\\glew",
+    "\\src"
   ],
-  "SelectedNode": "\\src",
+  "SelectedNode": "\\src\\basic_shaders.cpp",
   "PreviewInSolutionExplorer": false
 }

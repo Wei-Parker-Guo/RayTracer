@@ -68,7 +68,8 @@ Polygon::Polygon(const aiFace& face, const std::vector<Vertex>& total_vertices) 
         this->vertices.push_back(vert);
         vec3_add(this->norm, this->norm, vert.norm);
     }
-    vec3_norm(this->norm, this->norm); //average the vertex norms to get the surface norm
+    vec3_scale(this->norm, this->norm, 1 / face.mNumIndices); //average the vertex norms to get the surface norm
+    vec3_norm(this->norm, this->norm);
 }
 
 //The WRF method to check if a point is inside a ploygon (Jordan Curve Theorem)
@@ -112,6 +113,13 @@ Triangle::Triangle(const vec3 a, const vec3 b, const vec3 c) {
     vec3_deep_copy(this->a, a);
     vec3_deep_copy(this->b, b);
     vec3_deep_copy(this->c, c);
+    //calculate surface norm by taking the cross product of two edges
+    vec3 edge1;
+    vec3 edge2;
+    vec3_sub(edge1, this->b, this->a); //dir ab
+    vec3_sub(edge2, this->c, this->a); //dir ac
+    vec3_mul_cross(this->norm, edge1, edge2);
+    vec3_norm(this->norm, this->norm);
 }
 
 bool Triangle::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {

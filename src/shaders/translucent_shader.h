@@ -1,7 +1,6 @@
 #ifndef TRANSLU_SHADER
 #define TRANSLU_SHADER
 
-#include "fast_math.h"
 #include "basic_shaders.h"
 
 /* This algorithm DOES NOT implement subsurface scattering, it just linearly blend of BRDF and BTDF:

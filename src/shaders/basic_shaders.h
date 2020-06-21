@@ -2,14 +2,13 @@
 #define BASIC_SHADERS
 
 #include <algorithm>
-#include "linmath.h"
-#include "fast_math.h"
+#include "../fast_math.h"
 #define PI 3.14159265f
 
 /* generate lambertian shade with another light source
  * equation: c = cr(ca + clmax(0, n.l))
  */
-void gen_lambert_shade(const vec3 ca, const vec3 cr, const vec3 cl, const vec3 n, vec3 l, vec3 c);
+void gen_lambert_shade(const vec3 ca, const vec3 cr, const vec3 cl, const vec3 n, const vec3 l, vec3 c);
 
 /* generate phong shade based on a precalculated lambertian shade
 equation: c = clambert + clcp(h.n)^p */

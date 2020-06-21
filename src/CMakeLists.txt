@@ -11,13 +11,15 @@ cmake_minimum_required(VERSION 2.8)
 # )
 
 set(ASSESSMENT2_SOURCE
-    sketch_shader.cpp
-    translucent_shader.cpp
-    layered_toon_shader.cpp
-    basic_shaders.cpp
+    "shaders/sketch_shader.cpp"
+    "shaders/translucent_shader.cpp"
+    "shaders/layered_toon_shader.cpp"
+    "shaders/basic_shaders.cpp"
+    materials.cpp
     fast_math.cpp
     geometry.cpp
     ray.cpp
+    raypool.cpp
     rasterizer.cpp
     main.cpp
 )

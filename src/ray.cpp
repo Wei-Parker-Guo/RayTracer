@@ -5,9 +5,10 @@ Ray::Ray() {
     vec3_zero(this->e);
     vec3_zero(this->d);
     this->t = 0;
+    this->depth = 0;
 }
 
-Ray::Ray(const vec3 origin, const vec3 direction, const bool is_dir) {
+Ray::Ray(const vec3 origin, const vec3 direction, const bool is_dir, const int depth) {
     vec3 dir;
     vec3_deep_copy(dir, direction);
 
@@ -20,6 +21,7 @@ Ray::Ray(const vec3 origin, const vec3 direction, const bool is_dir) {
     vec3_deep_copy(this->d, dir);
     vec3_norm(this->d, this->d);
     this->t = 0.0f;
+    this->depth = depth;
 }
 
 void Ray::get_point(const float t, vec3 p) const {

@@ -1,8 +1,7 @@
 #ifndef LAYERED_TOON_SHADER
 #define LAYERED_TOON_SHADER
 
-#include "linmath.h"
-#include "fast_math.h"
+#include "../fast_math.h"
 
 // A simple function that layers a color with ratio given
 void vec3_layer(vec3 r, const vec3 maxr, const float max_n, const float n);

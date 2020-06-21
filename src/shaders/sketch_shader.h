@@ -1,7 +1,6 @@
 #ifndef SKETCH_SHADER
 #define SKETCH_SHADER
 
-#include "fast_math.h"
 #include "basic_shaders.h"
 
 /* This shader generates a sketch shade based on line direction given as a 2d vector and
