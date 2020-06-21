@@ -66,11 +66,9 @@ int  PosY_saved_global;
 bool rendering = false;
 
 //parameters
-bool using_phong = true;
-bool using_WARD = false;
-bool using_toon = false;
 bool using_translucent = false;
 bool using_sketch = false;
+bool suspended = false;
 
 string scene_file_dir = "default.fbx"; //the default scene file to render
 
@@ -129,7 +127,7 @@ bool load_scene(const string& file) {
 
     // If the import failed, report it
     if (!scene) {
-        printf("%s\n", importer.GetErrorString());
+        printf("\n[Importing Error (ASSIMP)]\n%s\n", importer.GetErrorString());
         return false;
     }
 
@@ -160,14 +158,11 @@ void drawFrame() {
     }
 
     glEnd();
-
-    //finished rendering, set status ready for another render
-    rendering = false;
 }
 
-//****************************************************
-// function that does the actual drawing of stuff
-//***************************************************
+//**********************************************************
+// function that does the actual drawing/rendering of stuff
+//**********************************************************
 
 void display(GLFWwindow* window)
 {
@@ -194,20 +189,20 @@ void renderFrame(GLFWwindow* window) {
     if (rendering) return;
     rendering = true;
 
-    //tests for the ray memory allocator
-    printf("Allocator test: Creating and allocating 10000 rays with page size of 64 rays.\n");
-    RayPool ray_pool = RayPool(64);
-    for (int i = 0; i < 10000; i++) {
-        Ray* new_r = (Ray*)malloc(sizeof(Ray));
-        new_r->depth = i;
-        ray_pool.push(new_r);
-    }
-    printf("Destroying all of them.\n");
-    for (int i = 0; i < 10000; i++) {
-        Ray* r = ray_pool.pop();
-        printf("%d", r->depth);
-        free(r);
-    }
+    //uncomment to run tests for the ray memory allocator
+    //printf("Allocator test: Creating and allocating 10000 rays with page size of 64 rays.\n");
+    //RayPool ray_pool = RayPool(64);
+    //for (int i = 0; i < 10000; i++) {
+    //    Ray* new_r = (Ray*)malloc(sizeof(Ray));
+    //    new_r->depth = i;
+    //    ray_pool.push(new_r);
+    //}
+    //printf("Destroying all of them.\n");
+    //for (int i = 0; i < 10000; i++) {
+    //    Ray* r = ray_pool.pop();
+    //    printf("%d", r->depth);
+    //    free(r);
+    //}
 
     //start the logger for render time
     printf("\nRendering starts.\n");
@@ -218,6 +213,12 @@ void renderFrame(GLFWwindow* window) {
     //draw
     for (int i = 0; i < rasterizer.getWidth(); i++) {
         for (int j = 0; j < rasterizer.getHeight(); j++) {
+            //still poll events for controls during rendering
+            glfwPollEvents();
+            while (suspended) glfwPollEvents();
+
+            //draw to rasterizer if not suspended
+
             //a new color sequence for each pixel
             colorseq cs;
 
@@ -253,15 +254,12 @@ void renderFrame(GLFWwindow* window) {
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     switch (key) {
-                    
-        // Hint on making up/down left/right work: the variable Translation [0] and [1].
-                
+                                    
         case GLFW_KEY_ESCAPE: 
+        case GLFW_KEY_Q:
             glfwSetWindowShouldClose(window, GLFW_TRUE);
+            if (rendering && suspended) exit(0); //quit directly if suspended
             break; 
-        case GLFW_KEY_Q:      
-            glfwSetWindowShouldClose(window, GLFW_TRUE); 
-            break;
         case GLFW_KEY_LEFT :
             Translation[0]-=1.0f;
             break;
@@ -289,7 +287,15 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
             }
             break;
         case GLFW_KEY_SPACE:
-            if (action == GLFW_RELEASE) renderFrame(window);
+            if (action == GLFW_RELEASE) {
+                //if rendering suspend/continue renderer
+                if (rendering) {
+                    suspended = !suspended;
+                    if (suspended) printf("Rendering suspended by user.\n");
+                    else printf("Rendering resumed by user.\n");
+                }
+                else renderFrame(window);
+            }
             break;
 
         default: 
@@ -326,12 +332,12 @@ void size_callback(GLFWwindow* window, int width, int height)
 // the usual stuff, nothing exciting here
 //****************************************************
 
-enum token_code{
-    not_specified
+enum class token_code{
+    not_specified,
 };
 
 token_code get_token_code(string const& token){
-    return not_specified;
+    return token_code::not_specified;
 }
 
 void read_cmd_tokens(const vector<string> tokens){
