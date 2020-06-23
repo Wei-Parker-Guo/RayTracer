@@ -415,17 +415,27 @@ void size_callback(GLFWwindow* window, int width, int height)
 // the usual stuff, nothing exciting here
 //****************************************************
 
-enum class token_code{
+enum class token_code {
     not_specified,
+    set_display_width,
+    set_display_height
 };
 
 token_code get_token_code(string const& token){
+    if (token == "-dispw") return token_code::set_display_width;
+    if (token == "-disph") return token_code::set_display_height;
     return token_code::not_specified;
 }
 
 void read_cmd_tokens(const vector<string> tokens){
 
     switch (get_token_code(tokens[0])) {
+        case token_code::set_display_width:
+            Width_global = stoi(tokens[1]);
+            break;
+        case token_code::set_display_height:
+            Height_global = stoi(tokens[1]);
+            break;
         default:
             break;
     }

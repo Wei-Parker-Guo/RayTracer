@@ -15,9 +15,8 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 # USAGE
 This project is platform independant and uses cmake to build. You do need an **Nvidia GTX GPU** if you plan to build the Cuda version.
 
-[Note] The main.cpp in this project uses **c++17**, you might have to enforce the compiler of your IDE to this version of c++.
-
 ## [General Build Steps]
+Should work for any IDEs as long as you have cmake version >= 2.8.
 
 1. ‘cd’ into your clone directory, type into the Terminal the following step by step
 2. mkdir build
@@ -29,7 +28,8 @@ This project is platform independant and uses cmake to build. You do need an **N
 8. if you wish to use custom setup for options, type the options line by line in a txt file in build and specify it when program opens.
 9. there is a template options.txt inside src, you can copy, rename and modify it to start quicker.
 
-## [For Windows Visual Studio Build Only (Exact Repulication of Implementer's Build Process)]
+## [For Windows Visual Studio Build Only]
+This is the exact repulication of the implementer's build process.
 
 1. ‘cd’ into your clone directory, type into the Terminal the following step by step
 2. mkdir build
@@ -56,8 +56,12 @@ This project is platform independant and uses cmake to build. You do need an **N
 # Render Results
 
 # Features
+1. Multiple model file formats supporting.
+2. Material editing and creating.
+3. Viewport customization.
 
 ## Accepted Model Files:
+The files accepted by this raytracer will be synced with the accepted file types of Assimp.
 
 **Collada** ( .dae, .xml )<br/>
 **Blender** ( .blend )<br/>
@@ -99,7 +103,16 @@ This project is platform independant and uses cmake to build. You do need an **N
 **TrueSpace** ( .cob, .scn )
 
 ## Command Line Options:
+The command line options are taken as a txt file to be specified when program starts for convenience. 
+You can check and modify the options.txt file in src to cook your own options.
 
+• **-dispw n**
+
+This sets the display width of the viewport to be n pixels.
+
+• **-disph n**
+
+This sets the display height of the viewport to be n pixels.
 
 # Additonal Features
 

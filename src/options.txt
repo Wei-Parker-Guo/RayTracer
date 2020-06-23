@@ -1,20 +1,5 @@
 [Note] If you set the pu/pv the shading will be switched to anisotropic, if p then isotropic, the line below will always override the line above for the same command, also for shading model selections.
 [Note] Anything could be written in this txt, the program will filter useless words. Just don't write too much irrelevant or efficiency will drop. DON'T WRITE BLANK LINES it will crash.
 [Write Commands Below]
-//-dl 0 -0.8 0.4 0.8 0.2 0.8 this is an example for a comment out, it won't be taken as a command since it has //
--ka 0.05 0.05 0.05
--kd 0 0.5 0.5
--ks 0.1 0.5 0.5
--sp 32
-//-spv 50
-//-spu 5
-//-dl 0.8 0.8 0.8 0.8 0.8 0.8
-//-dl -0.8 0.8 0.8 0.8 0.8 0.8
-//-dl 0 -0.8 0.4 0.8 0.2 0.8
-//-pl -0.9 0.8 0.7 0.8 0.8 0.2
--dl 0.8 0.8 0.8 0.8 0.8 0.8
--toon 0.2 0.2 0.5 0.8 0.6 0.6
--toonl 10
--transludepth 0.3
--transludd 0.9
--transluds 0.001
+-dispw 1920
+-disph 1080
