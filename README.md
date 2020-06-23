@@ -15,6 +15,8 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 # USAGE
 This project is platform independant and uses cmake to build. You do need an **Nvidia GTX GPU** if you plan to build the Cuda version.
 
+[Note] The main.cpp in this project uses **c++17**, you might have to enforce the compiler of your IDE to this version of c++.
+
 ## [General Build Steps]
 
 1. ‘cd’ into your clone directory, type into the Terminal the following step by step

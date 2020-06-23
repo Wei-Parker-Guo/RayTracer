@@ -1,9 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\glew",
+    "\\assimp-5.0.1\\include\\assimp",
     "\\src"
   ],
-  "SelectedNode": "\\src\\basic_shaders.cpp",
+  "SelectedNode": "\\src\\dirent.h",
   "PreviewInSolutionExplorer": false
 }

@@ -8,6 +8,10 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <sys/types.h>
+#include <sys/stat.h>
+//dirent for file and directories management
+#include "dirent.h"
 
 //include header file for glfw library so that we can use OpenGL
 #ifdef _WIN32
@@ -19,6 +23,7 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 #include <GLFW/glfw3.h>
 #include <stdlib.h>
 #include <time.h>
+#include <ctime>
 
 //logger-related imp
 #include <chrono>
@@ -27,6 +32,7 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <assimp/SceneCombiner.h>
 
 //memory allocators
 #include "raypool.h"
@@ -40,7 +46,12 @@ static DWORD lastTime;
 static struct timeval lastTime;
 #endif
 
-#define PI 3.14159265f // Should be used from mathlib
+//define the system path divider
+#if defined(WIN32) || defined(_WIN32) 
+#define PATH_SEPARATOR "\\" 
+#else 
+#define PATH_SEPARATOR "/"
+#endif 
 
 using namespace std;
 
@@ -70,7 +81,7 @@ bool using_translucent = false;
 bool using_sketch = false;
 bool suspended = false;
 
-string scene_file_dir = "default.fbx"; //the default scene file to render
+string scene_file_dir = "defaultScene"; //the default scene directory to render
 
 Rasterizer rasterizer = Rasterizer(Width_global, Height_global); //a single rasterizer pipeline (TODO: enable multi-pipeline rendering for quicker rerender)
 
@@ -111,31 +122,80 @@ void setLine(float x, float y, float x1, float y1, GLfloat r, GLfloat g, GLfloat
 // Draw a filled Frame with loaded scene
 //****************************************************
 
-//method to load a scene
-bool load_scene(const string& file) {
-    // Create an instance of the Importer class
+//function to retrieve all files of a certian type from the directory provided
+void retrieve_files(const string& pathname, vector<string>& filenames) {
+    printf("\n[IO Report]\n");
+    DIR* dir;
+    struct dirent* ent;
+    dir = opendir(pathname.c_str());
+    if (dir != NULL) {
+        /* print all the files within directory and save the file names to paths*/
+        while ((ent = readdir(dir)) != NULL) {
+            char* filename = ent->d_name;
+            if (ent->d_type == DT_DIR) continue;
+            printf("Detected %s\n", filename);
+            filenames.push_back(filename);
+        }
+        closedir(dir);
+    }
+    else {
+        /* could not open directory */
+        printf("Directory corrupted.\n");
+    }
+}
+
+//function to load a scene
+bool load_scene(string& dir) {
+    //Create an instance of the Importer class
     Assimp::Importer importer;
 
-    // And have it read the given file with some example postprocessing
-    // Usually - if speed is not the most important aspect for you - you'll
-    // probably to request more postprocessing than we do in this example.
-    const aiScene* scene = importer.ReadFile(file,
+    //find all scene files
+    vector<string> scene_paths;
+    retrieve_files(dir, scene_paths);
+
+    //import all scenes in the input folder
+    vector<string> scene_names;
+    for (int i = 0; i < scene_paths.size(); i++) {
+        string filename = "";
+        filename += dir;
+        filename += PATH_SEPARATOR;
+        filename += string(scene_paths[i]);
+
+        scene_names.push_back(filename);
+    }
+
+    //prompt the user to choose scenes if there are multiples [TO-DO: Option of merge, though it's not actually related to the renderer]
+    string scene_name;
+    if (scene_names.size() >= 2) {
+        printf("\nMultiple scenes detected, choose the scene to render by index:\n");
+        for (int i = 0; i < scene_names.size(); i++) {
+            printf("[%d] %s\n", i, scene_names[i].c_str());
+        }
+        int index = -1;
+        while (index < 0 || index >= scene_names.size()) scanf("%d", &index);
+        printf("Chosen Scene %s to render.\n", scene_names[index].c_str());
+        scene_name = scene_names[index];
+    }
+    else scene_name = scene_names[0];
+
+    //analyze and record the data we need
+    const aiScene* scene = importer.ReadFile(scene_name,
         aiProcess_CalcTangentSpace |
         aiProcess_Triangulate |
         aiProcess_JoinIdenticalVertices |
         aiProcess_SortByPType);
 
-    // If the import failed, report it
+    //If the import failed, report it
     if (!scene) {
         printf("\n[Importing Error (ASSIMP)]\n%s\n", importer.GetErrorString());
         return false;
     }
-
-    //analyze and record the data we need
+    else printf("Loaded Scene %s\n", scene_name.c_str());
 
     //load meshes and create geometry classes from them
     for (int i = 0; i < scene->mNumMeshes; i++) {
         aiMesh* mesh = scene->mMeshes[i];
+        printf("Detected Mesh Name: %s\n", mesh->mName.C_Str()); //log the names of the meshes inside
     }
 
     // We're done. Everything will be cleaned up by the importer destructor
@@ -205,8 +265,9 @@ void renderFrame(GLFWwindow* window) {
     //}
 
     //start the logger for render time
-    printf("\nRendering starts.\n");
     auto time_start = std::chrono::high_resolution_clock::now();
+    time_t time_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    printf("\n[Rendering Report]\nTime: %sRendering starts.\n", std::ctime(&time_now));
 
     //resize rasterizer if necessary
     rasterizer.resize(Width_global, Height_global);
@@ -221,7 +282,6 @@ void renderFrame(GLFWwindow* window) {
 
             //a new color sequence for each pixel
             colorseq cs;
-
 
             //render a test graph
             //test case of rendering alternate pixels
@@ -301,7 +361,6 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         default: 
             break;
     }
-    
 }
 
 //****************************************************
@@ -349,10 +408,20 @@ void read_cmd_tokens(const vector<string> tokens){
 
 }
 
-//method to check if a file exists
-bool file_exists(const char* filename) {
-    ifstream infile(filename);
-    return infile.good();
+//method to check if a folder exists
+//reference: https://stackoverflow.com/questions/18100097/portable-way-to-check-if-directory-exists-windows-linux-c
+bool folder_exists(const char* pathname) {
+    struct stat info;
+
+    if (stat(pathname, &info) != 0)
+        printf("Cannot access %s\n", pathname);
+    else if (info.st_mode & S_IFDIR) { // S_ISDIR() doesn't exist on my windows 
+        printf("%s is a directory\n", pathname);
+        return true;
+    }
+    else
+        printf("%s is no directory\n", pathname);
+    return false;
 }
 
 int main(int argc, char *argv[]) {
@@ -362,8 +431,8 @@ int main(int argc, char *argv[]) {
     printf("Enter Scene Folder (max 32 chars): ");
     scanf(" %32s", buffer);
     printf("Initialized using scene folder [%s]\n", buffer);
-    //check if file exists
-    if (!file_exists(buffer)) {
+    //check if directory exists
+    if (!folder_exists(buffer)) {
         printf("Can't open the scene file, using default.\n");
     }
     else scene_file_dir = buffer;
