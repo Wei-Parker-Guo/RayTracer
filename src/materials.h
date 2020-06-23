@@ -3,6 +3,7 @@
 
 #include "fast_math.h"
 #include "geometry.h"
+#include "lights.h"
 
 //the virtual class representing all materials
 class Material {
@@ -15,7 +16,7 @@ class Material {
 		//virtual methods to override
 
 		//method to apply the shade on an input color to retrieve the shaded one, with light and triangle info given
-		virtual void apply_shade(vec3 r, const vec3 c, const vec3 l, const vec3 lc, const vec3 p, const Triangle& t);
+		virtual void apply_shade(vec3 r, const vec3 p, const Triangle& t, Light& light);
 };
 
 //a basic lambert material
@@ -25,7 +26,7 @@ class LambertMat : Material {
 		LambertMat(const vec3 base_c, const vec3 ambient_c, const vec3 reflect_c);
 
 		//methods
-		void apply_shade(vec3 r, const vec3 c, const vec3 l, const vec3 lc, const vec3 p, const Triangle& t);
+		void apply_shade(vec3 r, const vec3 p, const Triangle& t, Light& light);
 };
 
 #endif

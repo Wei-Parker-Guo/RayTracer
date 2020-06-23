@@ -10,8 +10,6 @@
 #include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>
-//dirent for file and directories management
-#include "dirent.h"
 
 //include header file for glfw library so that we can use OpenGL
 #ifdef _WIN32
@@ -39,6 +37,9 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 
 //pipelines
 #include "rasterizer.h"
+
+//dirent for file and directories management
+#include "dirent.h"
 
 #ifdef _WIN32
 static DWORD lastTime;
@@ -149,6 +150,10 @@ bool load_scene(string& dir) {
     //Create an instance of the Importer class
     Assimp::Importer importer;
 
+    //********************************
+    // FILE SYSTEM STUFF GOES HERE
+    //********************************
+
     //find all scene files
     vector<string> scene_paths;
     retrieve_files(dir, scene_paths);
@@ -179,10 +184,12 @@ bool load_scene(string& dir) {
     else scene_name = scene_names[0];
 
     //analyze and record the data we need
+    //we will have tangent, triangles, vertices optimiaztion, aabb bounding box after this
     const aiScene* scene = importer.ReadFile(scene_name,
         aiProcess_CalcTangentSpace |
         aiProcess_Triangulate |
         aiProcess_JoinIdenticalVertices |
+        aiProcess_GenBoundingBoxes |
         aiProcess_SortByPType);
 
     //If the import failed, report it
@@ -192,10 +199,27 @@ bool load_scene(string& dir) {
     }
     else printf("Loaded Scene %s\n", scene_name.c_str());
 
+    //*******************************
+    // LOADING STUFF GOES BELOW
+    //*******************************
+
     //load meshes and create geometry classes from them
+    printf("\nDetected Meshes:\n\n");
     for (int i = 0; i < scene->mNumMeshes; i++) {
         aiMesh* mesh = scene->mMeshes[i];
-        printf("Detected Mesh Name: %s\n", mesh->mName.C_Str()); //log the names of the meshes inside
+        printf("%s\n", mesh->mName.C_Str()); //log the names of the meshes inside
+    }
+    //load lights
+    printf("\nDetected Lights:\n\n");
+    for (int i = 0; i < scene->mNumLights; i++) {
+        aiLight* light = scene->mLights[i];
+        printf("%s\n", light->mName.C_Str());
+    }
+    //load cameras
+    printf("\nDetected Cameras:\n\n");
+    for (int i = 0; i < scene->mNumCameras; i++) {
+        aiCamera* cam = scene->mCameras[i];
+        printf("%s\n", cam->mName.C_Str());
     }
 
     // We're done. Everything will be cleaned up by the importer destructor
