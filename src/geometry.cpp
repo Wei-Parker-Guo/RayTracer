@@ -1,6 +1,5 @@
 #include "geometry.h"
 
-
 //method to determine whether the geometry is hit by the rat
 bool Surface::hit(const Ray& r, const float t0, const float t1, hitrec& rec){
     return true;
@@ -11,23 +10,27 @@ void Surface::bounding_box(box b){
 
 }
 
-Mesh::Mesh(const aiMesh* mesh, const std::vector<Texture> &textures) {
+Mesh::Mesh(const aiMesh* mesh) {
     //record vertices
     for (int i = 0; i < mesh->mNumVertices; i++) {
         Vertex vert;
-        vec3 pos = { mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
-        vec3 norm = { mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z };
-        vec3_deep_copy(vert.pos, pos);
-        vec3_deep_copy(vert.norm, norm);
-        vert.uv[0] = mesh->mTextureCoords[i]->x;
-        vert.uv[1] = mesh->mTextureCoords[i]->y;
+        //read pos
+        aivec_to_vec3(vert.pos, mesh->mVertices[i]);
+        //read norm
+        aivec_to_vec3(vert.norm, mesh->mNormals[i]);
+        //read uv
+        aiVector3D uvs = mesh->mTextureCoords[0][i];
+        vert.uv[0] = uvs.x;
+        vert.uv[1] = uvs.y;
         this->vertices.push_back(vert);
     }
     //record faces
     for (int i = 0; i < mesh->mNumFaces; i++) {
-        this->faces.push_back(mesh->mFaces[i]);
+        aiFace face = mesh->mFaces[i];
+        this->faces.push_back(face);
     }
-    this->textures = textures;
+    aivec_to_vec3(this->aabb[0], mesh->mAABB.mMin);
+    aivec_to_vec3(this->aabb[1], mesh->mAABB.mMax);
 }
 
 bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
@@ -53,7 +56,8 @@ bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
 }
 
 void Mesh::bounding_box(box b) {
-
+    vec3_deep_copy(b[0], this->aabb[0]);
+    vec3_deep_copy(b[1], this->aabb[1]);
 }
 
 Polygon::Polygon(const aiFace& face, const std::vector<Vertex>& total_vertices) {

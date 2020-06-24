@@ -54,6 +54,7 @@ This is the exact repulication of the implementer's build process.
 3. [Esc]/[Q]              Quit the program
 
 # Render Results
+1. All the logs are recorded in logs.txt in raytracer.exe's directory.
 
 # Features
 1. Multiple model file formats supporting.

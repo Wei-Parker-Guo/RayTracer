@@ -1,9 +1,24 @@
 #ifndef MATERIALS
 #define MATERIALS
 
+#include <vector>
 #include "fast_math.h"
 #include "geometry.h"
 #include "lights.h"
+
+enum class texture_type {
+	base_color,
+	specular,
+	metallic,
+	height,
+	bump,
+	roughness
+};
+
+struct Texture {
+	unsigned int id;
+	texture_type type;
+};
 
 //the virtual class representing all materials
 class Material {
@@ -12,6 +27,7 @@ class Material {
 		vec3 base_c;
 		vec3 ambient_c;
 		vec3 reflect_c;
+		std::vector<Texture*> texes;
 
 		//virtual methods to override
 

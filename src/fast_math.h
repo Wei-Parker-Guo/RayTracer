@@ -2,6 +2,7 @@
 #define FAST_MATH
 
 #include "linmath.h" //include some of the linear math ops provided by GLFW
+#include "assimp/Importer.hpp"
 
 float sqr(float x);
 
@@ -30,7 +31,13 @@ void vec3_deep_copy(vec3 r, const vec3 a);
 // A simple function that takes an rgb color and transform it to three even channeled grayscale color
 void rgb_to_grayscale(vec3 r, const vec3 rgb);
 
-//method to zero out a vector
+//function to zero out a vector
 void vec3_zero(vec3 r);
+
+//function to deep copy an aiVector3D to vec3
+void aivec_to_vec3(vec3 r, const aiVector3D& v);
+
+//function to deep copy an aiColor into vec3
+void aicolor_to_vec3(vec3 r, const aiColor3D& c);
 
 #endif

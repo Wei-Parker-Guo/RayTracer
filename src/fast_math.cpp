@@ -52,3 +52,15 @@ void vec3_zero(vec3 r) {
     r[1] = 0.0f;
     r[2] = 0.0f;
 }
+
+void aivec_to_vec3(vec3 r, const aiVector3D& v) {
+    r[0] = v.x;
+    r[1] = v.y;
+    r[2] = v.z;
+}
+
+void aicolor_to_vec3(vec3 r, const aiColor3D& c) {
+    r[0] = c.r;
+    r[1] = c.g;
+    r[2] = c.b;
+}

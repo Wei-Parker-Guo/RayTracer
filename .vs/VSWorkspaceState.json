@@ -1,9 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\assimp-5.0.1\\include\\assimp",
-    "\\src"
+    "\\src",
+    "\\src\\shaders"
   ],
-  "SelectedNode": "\\src\\dirent.h",
+  "SelectedNode": "\\README.md",
   "PreviewInSolutionExplorer": false
 }

@@ -25,6 +25,7 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 
 //logger-related imp
 #include <chrono>
+#include <stdarg.h>
 
 //include assimp for model file imports
 #include <assimp/Importer.hpp>
@@ -36,7 +37,9 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 #include "raypool.h"
 
 //pipelines
-#include "rasterizer.h"
+#include "geometry.h"     //geometry pipeline
+#include "lights.h"       //illumination pipeline
+#include "rasterizer.h"   //rasterizer pipeline
 
 //dirent for file and directories management
 #include "dirent.h"
@@ -82,11 +85,33 @@ bool using_translucent = false;
 bool using_sketch = false;
 bool suspended = false;
 
+FILE* fp = fopen("logs.txt", "w");
 string scene_file_dir = "defaultScene"; //the default scene directory to render
 
 Rasterizer rasterizer = Rasterizer(Width_global, Height_global); //a single rasterizer pipeline (TODO: enable multi-pipeline rendering for quicker rerender)
 
 const GLFWvidmode * VideoMode_global = NULL;
+
+//****************************************************
+// Log Stuff
+//****************************************************
+
+//function to print to a log file (logs.txt) and stdout at the same time
+void logprintf(char* format, ...)
+{
+    va_list ap;
+    va_list ap2;
+
+    va_start(ap, format);
+    va_copy(ap2, ap);
+
+    vfprintf(fp, format, ap);
+    va_end(ap);
+
+    vprintf(format, ap2);
+    va_end(ap2);
+}
+
 
 //****************************************************
 // Simple init function
@@ -125,7 +150,7 @@ void setLine(float x, float y, float x1, float y1, GLfloat r, GLfloat g, GLfloat
 
 //function to retrieve all files of a certian type from the directory provided
 void retrieve_files(const string& pathname, vector<string>& filenames) {
-    printf("\n[IO Report]\n");
+    logprintf("\n[IO Report]\n");
     DIR* dir;
     struct dirent* ent;
     dir = opendir(pathname.c_str());
@@ -134,19 +159,19 @@ void retrieve_files(const string& pathname, vector<string>& filenames) {
         while ((ent = readdir(dir)) != NULL) {
             char* filename = ent->d_name;
             if (ent->d_type == DT_DIR) continue;
-            printf("Detected %s\n", filename);
+            logprintf("Detected %s\n", filename);
             filenames.push_back(filename);
         }
         closedir(dir);
     }
     else {
         /* could not open directory */
-        printf("Directory corrupted.\n");
+        logprintf("Directory corrupted.\n");
     }
 }
 
 //function to load a scene
-bool load_scene(string& dir) {
+bool load_scene(vector<Mesh*>& meshes, vector<Light*> lights, const string& dir) {
     //Create an instance of the Importer class
     Assimp::Importer importer;
 
@@ -172,54 +197,64 @@ bool load_scene(string& dir) {
     //prompt the user to choose scenes if there are multiples [TO-DO: Option of merge, though it's not actually related to the renderer]
     string scene_name;
     if (scene_names.size() >= 2) {
-        printf("\nMultiple scenes detected, choose the scene to render by index:\n");
+        logprintf("\nMultiple scenes detected, choose the scene to render by index:\n");
         for (int i = 0; i < scene_names.size(); i++) {
-            printf("[%d] %s\n", i, scene_names[i].c_str());
+            logprintf("[%d] %s\n", i, scene_names[i].c_str());
         }
         int index = -1;
         while (index < 0 || index >= scene_names.size()) scanf("%d", &index);
-        printf("Chosen Scene %s to render.\n", scene_names[index].c_str());
+        logprintf("Chosen Scene %s to render.\n", scene_names[index].c_str());
         scene_name = scene_names[index];
     }
     else scene_name = scene_names[0];
 
     //analyze and record the data we need
-    //we will have tangent, triangles, vertices optimiaztion, aabb bounding box after this
+    //we will have tangent, triangles, vertices optimiaztion, forced explicit uv mapping, aabb bounding box after this
     const aiScene* scene = importer.ReadFile(scene_name,
         aiProcess_CalcTangentSpace |
         aiProcess_Triangulate |
         aiProcess_JoinIdenticalVertices |
         aiProcess_GenBoundingBoxes |
+        aiProcess_GenUVCoords |
         aiProcess_SortByPType);
 
     //If the import failed, report it
     if (!scene) {
-        printf("\n[Importing Error (ASSIMP)]\n%s\n", importer.GetErrorString());
+        logprintf("\n[Importing Error (ASSIMP)]\n%s\n", importer.GetErrorString());
         return false;
     }
-    else printf("Loaded Scene %s\n", scene_name.c_str());
+    else logprintf("Loaded Scene %s\n", scene_name.c_str());
 
     //*******************************
     // LOADING STUFF GOES BELOW
     //*******************************
 
     //load meshes and create geometry classes from them
-    printf("\nDetected Meshes:\n\n");
+    logprintf("\nDetected Meshes:\n\n");
     for (int i = 0; i < scene->mNumMeshes; i++) {
         aiMesh* mesh = scene->mMeshes[i];
-        printf("%s\n", mesh->mName.C_Str()); //log the names of the meshes inside
+        //store
+        Mesh* new_mesh = new Mesh(mesh);
+        meshes.push_back(new_mesh);
+        logprintf("%s\n", mesh->mName.C_Str()); //log the names of the meshes inside
     }
+
     //load lights
-    printf("\nDetected Lights:\n\n");
+    logprintf("\nDetected Lights:\n\n");
     for (int i = 0; i < scene->mNumLights; i++) {
         aiLight* light = scene->mLights[i];
-        printf("%s\n", light->mName.C_Str());
+        //store
+        Light* new_light;
+        if (light->mType == aiLightSourceType::aiLightSource_DIRECTIONAL) new_light = new DirectLight(light); //directional light
+        lights.push_back(new_light);
+        logprintf("%s\n", light->mName.C_Str());
     }
+
     //load cameras
-    printf("\nDetected Cameras:\n\n");
+    logprintf("\nDetected Cameras:\n\n");
     for (int i = 0; i < scene->mNumCameras; i++) {
         aiCamera* cam = scene->mCameras[i];
-        printf("%s\n", cam->mName.C_Str());
+        logprintf("%s\n", cam->mName.C_Str());
     }
 
     // We're done. Everything will be cleaned up by the importer destructor
@@ -274,27 +309,29 @@ void renderFrame(GLFWwindow* window) {
     rendering = true;
 
     //uncomment to run tests for the ray memory allocator
-    //printf("Allocator test: Creating and allocating 10000 rays with page size of 64 rays.\n");
+    //logprintf("Allocator test: Creating and allocating 10000 rays with page size of 64 rays.\n");
     //RayPool ray_pool = RayPool(64);
     //for (int i = 0; i < 10000; i++) {
     //    Ray* new_r = (Ray*)malloc(sizeof(Ray));
     //    new_r->depth = i;
     //    ray_pool.push(new_r);
     //}
-    //printf("Destroying all of them.\n");
+    //logprintf("Destroying all of them.\n");
     //for (int i = 0; i < 10000; i++) {
     //    Ray* r = ray_pool.pop();
-    //    printf("%d", r->depth);
+    //    logprintf("%d", r->depth);
     //    free(r);
     //}
 
     //start the logger for render time
     auto time_start = std::chrono::high_resolution_clock::now();
     time_t time_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    printf("\n[Rendering Report]\nTime: %sRendering starts.\n", std::ctime(&time_now));
+    logprintf("\n[Rendering Report]\nTime: %sRendering starts.\n", std::ctime(&time_now));
 
     //resize rasterizer if necessary
     rasterizer.resize(Width_global, Height_global);
+    logprintf("Resolution: %d X %d\n", Width_global, Height_global);
+
     //draw
     for (int i = 0; i < rasterizer.getWidth(); i++) {
         for (int j = 0; j < rasterizer.getHeight(); j++) {
@@ -326,7 +363,7 @@ void renderFrame(GLFWwindow* window) {
     //end logger and output logs
     auto time_stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(time_stop - time_start);
-    printf("Rendering finished with total duration of %f seconds.\n", duration.count() / 1000.0f);
+    logprintf("Rendering finished with total duration of %f seconds.\n", duration.count() / 1000.0f);
 
     rendering = false;
 }
@@ -375,8 +412,8 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
                 //if rendering suspend/continue renderer
                 if (rendering) {
                     suspended = !suspended;
-                    if (suspended) printf("Rendering suspended by user.\n");
-                    else printf("Rendering resumed by user.\n");
+                    if (suspended) logprintf("Rendering suspended by user.\n");
+                    else logprintf("Rendering resumed by user.\n");
                 }
                 else renderFrame(window);
             }
@@ -448,13 +485,12 @@ bool folder_exists(const char* pathname) {
     struct stat info;
 
     if (stat(pathname, &info) != 0)
-        printf("Cannot access %s\n", pathname);
+        logprintf("Cannot access %s\n", pathname);
     else if (info.st_mode & S_IFDIR) { // S_ISDIR() doesn't exist on my windows 
-        printf("%s is a directory\n", pathname);
         return true;
     }
     else
-        printf("%s is no directory\n", pathname);
+        logprintf("%s is no directory\n", pathname);
     return false;
 }
 
@@ -462,24 +498,24 @@ int main(int argc, char *argv[]) {
 
     //take user input of scene file and options file
     char buffer[32];
-    printf("Enter Scene Folder (max 32 chars): ");
+    logprintf("Enter Scene Folder (max 32 chars): ");
     scanf(" %32s", buffer);
-    printf("Initialized using scene folder [%s]\n", buffer);
+    logprintf("Initialized using scene folder [%s]\n", buffer);
     //check if directory exists
     if (!folder_exists(buffer)) {
-        printf("Can't open the scene file, using default.\n");
+        logprintf("Can't open the scene file, using default.\n");
     }
     else scene_file_dir = buffer;
 
     char buffer1[32];
-    printf("Enter Option File (max 32 chars): ");
+    logprintf("Enter Option File (max 32 chars): ");
     scanf(" %32s", buffer1);
-    printf("Initialized using option file [%s]\n", buffer1);
+    logprintf("Initialized using option file [%s]\n", buffer1);
 
     //open option file and record variables
     ifstream input_stream(buffer1);
     if(!input_stream){
-        printf("Can't open the option file, using default.\n");
+        logprintf("Can't open the option file, using default.\n");
     }
     
     //read lines for values
@@ -497,7 +533,9 @@ int main(int argc, char *argv[]) {
     }
 
     //load scene
-    load_scene(scene_file_dir);
+    vector<Mesh*> meshes;
+    vector<Light*> lights;
+    load_scene(meshes, lights, scene_file_dir);
 
     //This initializes glfw
     initializeRendering();
@@ -531,6 +569,9 @@ int main(int argc, char *argv[]) {
 
         glfwPollEvents();        
     }
+
+    //close the log file
+    fclose(fp);
 
     return 0;
 }

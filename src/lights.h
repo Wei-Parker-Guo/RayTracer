@@ -2,6 +2,7 @@
 #define LIGHTS
 
 #include "fast_math.h"
+#include "assimp/light.h"
 
 //class representing a general light object
 class Light {
@@ -15,6 +16,9 @@ class DirectLight : public Light {
 		vec3 color;
 		vec3 direction;
 	public:
+		//construct a directlight from an aiLight type
+		DirectLight(aiLight* light);
+		//methods
 		void get_dir_c(vec3 r, vec3 c, const vec3 ppos);
 };
 

@@ -30,29 +30,15 @@ struct Vertex {
     vec2 uv;
 };
 
-enum texture_type {
-    base_color,
-    specular,
-    metallic,
-    height,
-    bump,
-    roughness
-};
-
-struct Texture {
-    unsigned int id;
-    texture_type type;
-};
-
 //class representing a mesh
 class Mesh : public Surface {
     private:
         std::vector<Vertex> vertices;
         std::vector<aiFace> faces;
-        std::vector<Texture> textures;
+        box aabb;
 
     public:
-        Mesh(const aiMesh* mesh, const std::vector<Texture>& textures);
+        Mesh(const aiMesh* mesh);
         bool hit(const Ray& r, const float t0, const float t1, hitrec& rec);
         void bounding_box(box b);
 };
