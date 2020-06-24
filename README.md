@@ -9,8 +9,18 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 2. GLEW
 3. ASSIMP Version 5.0.1
 4. CUDA
-5. linmath.h under GLFW Dependencies
-6. Code references are enclosed as inline comments.
+5. dirent.h for directory/file manipulations
+6. linmath.h under GLFW Dependencies
+7. Code references are enclosed as inline comments.
+
+# Render Results
+1. All the logs are recorded in logs.txt in raytracer.exe's directory.
+
+# Dummy Program Logic Flow
+
+<p align="center">
+  <img width="960" height="960" src="docs&images/dummy_logic_flow.jpg">
+</p>
 
 # USAGE
 This project is platform independant and uses cmake to build. You do need an **Nvidia GTX GPU** if you plan to build the Cuda version.
@@ -40,21 +50,6 @@ This is the exact repulication of the implementer's build process.
 7. Switch to Folder View in the solution explorer
 8. Select Debug-x64 and specify target to be raytracer.exe
 9. Build
-
-# Dummy Program Logic Flow
-
-<p align="center">
-  <img width="960" height="960" src="docs&images/dummy_logic_flow.jpg">
-</p>
-
-# Keyboard features
-1. [Space]                Start a new rendering frame
-2. [F]                    Make the program fullscreen
-4. [Up/Down/Left/Right]   Move the rendered image around
-3. [Esc]/[Q]              Quit the program
-
-# Render Results
-1. All the logs are recorded in logs.txt in raytracer.exe's directory.
 
 # Features
 1. Multiple model file formats supporting.
@@ -102,6 +97,12 @@ The files accepted by this raytracer will be synced with the accepted file types
 **CharacterStudio Motion** ( .csm )<br/>
 **Stanford Ply** ( .ply )<br/>
 **TrueSpace** ( .cob, .scn )
+
+## Keyboard features
+1. [Space]                Start a new rendering frame
+2. [F]                    Make the program fullscreen
+4. [Up/Down/Left/Right]   Move the rendered image around
+3. [Esc]/[Q]              Quit the program
 
 ## Command Line Options:
 The command line options are taken as a txt file to be specified when program starts for convenience. 
