@@ -17,6 +17,7 @@ set(ASSESSMENT2_SOURCE
     "shaders/basic_shaders.cpp"
     materials.cpp
     lights.cpp
+    cameras.cpp
     fast_math.cpp
     geometry.cpp
     ray.cpp

@@ -39,6 +39,7 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 //pipelines
 #include "geometry.h"     //geometry pipeline
 #include "lights.h"       //illumination pipeline
+#include "cameras.h"      //viewport pipeline
 #include "rasterizer.h"   //rasterizer pipeline
 
 //dirent for file and directories management
@@ -85,8 +86,21 @@ bool using_translucent = false;
 bool using_sketch = false;
 bool suspended = false;
 
+const float PI = 3.1415926;
+
 FILE* fp = fopen("logs.txt", "w");
 string scene_file_dir = "defaultScene"; //the default scene directory to render
+
+//scene objects
+vector<Mesh*> meshes;
+vector<Light*> lights;
+vector<Camera*> cams;
+
+//ray parameters
+float set_hfov = 54.43; //horizontal fov of the camera, default to maya standard default 54.43
+int samples_per_pixel = 2; //sample monte carlo rays per pixel width, defaulted to 2, actual sample number is its square
+int ray_pool_page_size = 64; //page size for the ray allocator
+int max_ray_bounce = 3; //maximum bounce time of a ray
 
 Rasterizer rasterizer = Rasterizer(Width_global, Height_global); //a single rasterizer pipeline (TODO: enable multi-pipeline rendering for quicker rerender)
 
@@ -170,8 +184,25 @@ void retrieve_files(const string& pathname, vector<string>& filenames) {
     }
 }
 
+//function to retireve a node's global transform matrix in a scene
+void retrieve_node_gtrans(aiMatrix4x4 out, const aiScene* scene, const char* node_name) {
+    aiNode* root_node = scene->mRootNode;
+    aiNode* this_node = root_node->FindNode(node_name);
+    //traverse through hierachy to get all transform matrices
+    vector<aiMatrix4x4> trans_matrices;
+    while (this_node->mParent != NULL) {
+        trans_matrices.push_back(this_node->mTransformation);
+        this_node = this_node->mParent;
+    }
+    //multiply the transform matrix
+    while (!trans_matrices.empty()) {
+        out *= trans_matrices.back();
+        trans_matrices.pop_back();
+    }
+}
+
 //function to load a scene
-bool load_scene(vector<Mesh*>& meshes, vector<Light*> lights, const string& dir) {
+bool load_scene(const string& dir) {
     //Create an instance of the Importer class
     Assimp::Importer importer;
 
@@ -211,10 +242,12 @@ bool load_scene(vector<Mesh*>& meshes, vector<Light*> lights, const string& dir)
     //analyze and record the data we need
     //we will have tangent, triangles, vertices optimiaztion, forced explicit uv mapping, aabb bounding box after this
     const aiScene* scene = importer.ReadFile(scene_name,
+        aiProcess_GenSmoothNormals | //smooth the normals
         aiProcess_CalcTangentSpace |
         aiProcess_Triangulate |
         aiProcess_JoinIdenticalVertices |
         aiProcess_GenBoundingBoxes |
+        aiProcess_PreTransformVertices |
         aiProcess_GenUVCoords |
         aiProcess_SortByPType);
 
@@ -254,6 +287,12 @@ bool load_scene(vector<Mesh*>& meshes, vector<Light*> lights, const string& dir)
     logprintf("\nDetected Cameras:\n\n");
     for (int i = 0; i < scene->mNumCameras; i++) {
         aiCamera* cam = scene->mCameras[i];
+        aiMatrix4x4 cam_mat;
+        cam->GetCameraMatrix(cam_mat);
+        //retrieve_node_gtrans(cam_mat, scene, cam->mName.C_Str());
+        //store
+        Camera* new_cam = new Camera(cam, cam_mat);
+        cams.push_back(new_cam);
         logprintf("%s\n", cam->mName.C_Str());
     }
 
@@ -332,24 +371,96 @@ void renderFrame(GLFWwindow* window) {
     rasterizer.resize(Width_global, Height_global);
     logprintf("Resolution: %d X %d\n", Width_global, Height_global);
 
-    //draw
+    //select the first cam to use for now [TODO]: enable user to switch camera to render and provide a default if not read
+    Camera* use_cam = cams[0];
+
+    //figure out parameters for the viewport
+    float aspect_ratio = rasterizer.getHeight() / (float) rasterizer.getWidth();
+    float d = use_cam->near_clip;
+    float a = d * tan(PI * set_hfov / 360); //note that we prefer our user hfov here instead of value from imported camera since assimp has trouble loading it
+    float l = -a;
+    float r = a;
+    float t = a * aspect_ratio;
+    float b = -t;
+
+    //******************************
+    // RENDER EVERY PIXEL
+    //******************************
+
+    //initialize a ray allocator
+    RayPool ray_pool = RayPool(ray_pool_page_size);
+
     for (int i = 0; i < rasterizer.getWidth(); i++) {
         for (int j = 0; j < rasterizer.getHeight(); j++) {
             //still poll events for controls during rendering
             glfwPollEvents();
             while (suspended) glfwPollEvents();
 
-            //draw to rasterizer if not suspended
+            //**************************************
+            // draw to rasterizer if not suspended
+            //**************************************
 
             //a new color sequence for each pixel
             colorseq cs;
 
-            //render a test graph
-            //test case of rendering alternate pixels
-            color c;
-            if (((i % 100 < 50) && j % 100 < 50) || (!(i % 100 < 50) && j % 100 > 50)) c = { 48 / 255.0f, 49 / 255.0f, 54 / 255.0f };
-            else c = { 32 / 255.0f,  33 / 255.0f,  38 / 255.0f };
-            cs.push_back(c);
+            //loop over to generate sample rays on a pixel
+            for (int x = 0; x < samples_per_pixel; x++) {
+                for (int y = 0; y < samples_per_pixel; y++) {
+                    float unit_len = 1.0f / samples_per_pixel;
+
+                    //jitter the center of the ray
+                    float jitter_x = rand() % 100 / 100.0f;
+                    float jitter_y = rand() % 100 / 100.0f;
+
+                    //figure out uvs
+                    float u = l + (r - l) * (i + unit_len * x + jitter_x * unit_len) / rasterizer.getWidth();
+                    float v = b + (t - b) * (j + unit_len * y + jitter_y * unit_len) / rasterizer.getHeight();
+                    
+                    //figure out ray
+                    vec3 dir_u;
+                    vec3 dir_v;
+                    vec3 dir_w;
+                    vec3 ray_dir;
+                    vec3_scale(dir_u, use_cam->side, u);
+                    vec3_scale(dir_v, use_cam->up, v);
+                    vec3_scale(dir_w, use_cam->lookat, -d);
+                    vec3_add(ray_dir, dir_u, dir_v);
+                    vec3_add(ray_dir, ray_dir, dir_w);
+                    vec3_norm(ray_dir, ray_dir);
+                    
+                    //construct ray
+                    Ray* new_render_ray = (Ray*) malloc(sizeof(Ray));
+                    vec3_deep_copy(new_render_ray->e, use_cam->pos);
+                    vec3_deep_copy(new_render_ray->d, ray_dir);
+                    new_render_ray->depth = max_ray_bounce;
+                    //add to pool
+                    ray_pool.push(new_render_ray);
+                }
+            }
+            
+            //hit test
+            while (ray_pool.size() != 0) {
+                vec3 c;
+                vec3 yellow = { 1.0f, 1.0f, 0.0f };
+                vec3 dark = { 0.1f, 0.1f, 0.1f };
+                Ray* ray = ray_pool.pop();
+                bool hit = false;
+                for (int i = 0; i < meshes.size(); i++) {
+                    Mesh* mesh = meshes[i];
+                    hitrec rec;
+                    hit = mesh->hit(*ray, d, use_cam->far_clip, rec);
+                    if (hit) break;
+                }
+                free(ray);
+                if (hit) {
+                    vec3_deep_copy(c, yellow);
+                }
+                else vec3_deep_copy(c, dark);
+                color r;
+                vec3_to_color(r, c);
+                cs.push_back(r);
+            }
+
             rasterizer.setColor(i, j, cs);
 
             //display the render result by block progressively
@@ -455,12 +566,18 @@ void size_callback(GLFWwindow* window, int width, int height)
 enum class token_code {
     not_specified,
     set_display_width,
-    set_display_height
+    set_display_height,
+    set_horizontal_fov,
+    set_spp,
+    set_bounce
 };
 
 token_code get_token_code(string const& token){
     if (token == "-dispw") return token_code::set_display_width;
     if (token == "-disph") return token_code::set_display_height;
+    if (token == "-hfov") return token_code::set_horizontal_fov;
+    if (token == "-spp") return token_code::set_spp;
+    if (token == "-bounce") return token_code::set_bounce;
     return token_code::not_specified;
 }
 
@@ -472,6 +589,15 @@ void read_cmd_tokens(const vector<string> tokens){
             break;
         case token_code::set_display_height:
             Height_global = stoi(tokens[1]);
+            break;
+        case token_code::set_horizontal_fov:
+            set_hfov = stof(tokens[1]);
+            break;
+        case token_code::set_spp:
+            samples_per_pixel = stoi(tokens[1]);
+            break;
+        case token_code::set_bounce:
+            max_ray_bounce = stoi(tokens[1]);
             break;
         default:
             break;
@@ -533,9 +659,7 @@ int main(int argc, char *argv[]) {
     }
 
     //load scene
-    vector<Mesh*> meshes;
-    vector<Light*> lights;
-    load_scene(meshes, lights, scene_file_dir);
+    load_scene(scene_file_dir);
 
     //This initializes glfw
     initializeRendering();

@@ -21,6 +21,7 @@ class RayPool {
 		//each page of the stack is managed as a stack, with reference to all pages stored inside
 		//LIFO stack is implemented using linked list
 		unsigned int page_size = 64; //max size of a page created
+		unsigned int total_size = 0;
 		RayPage* last_page; //pointer to the last page
 
 		//method to create a new blank page and link it to the pool, given pointer to its prev
@@ -33,6 +34,8 @@ class RayPool {
 		void push(Ray * r);
 		//method to pop out a ray and destroy the node
 		Ray* pop();
+		//method to retrieve the entire size of the pool
+		int size();
 };
 
 #endif // !RAYPOOL

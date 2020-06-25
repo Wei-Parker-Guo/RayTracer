@@ -110,11 +110,23 @@ You can check and modify the options.txt file in src to cook your own options.
 
 • **-dispw n**
 
-This sets the display width of the viewport to be n pixels.
+This sets the display width of the viewport to be n pixels. n is a positive nozero integer.
 
 • **-disph n**
 
-This sets the display height of the viewport to be n pixels.
+This sets the display height of the viewport to be n pixels. n is a positive nozero integer.
+
+• **-hfov f**
+
+This sets the the horizontal field of view angle for the camera in degrees. A recommended value is 54.43 for human eyes. f is a positive nonzero float.
+
+• **-spp n**
+
+This sets the anti-aliasing samples per pixel used by the raytracer, higher means smoother/slower. n is a positive nonzero integer.
+
+• **-bounce n**
+
+This sets the maximum bouncing time of each light reflect, higher means slower/better viusals. n is a positive integer.
 
 # Additonal Features
 

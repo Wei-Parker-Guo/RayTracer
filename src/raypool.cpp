@@ -30,6 +30,7 @@ void RayPool::push(Ray* r) {
 	new_node->next = this->last_page->node;
 	this->last_page->node = new_node;
 	this->last_page->size += 1;
+	this->total_size += 1;
 }
 
 //method to pop out a ray
@@ -55,5 +56,10 @@ Ray* RayPool::pop() {
 	this->last_page->node = n->next;
 	//free the node itself
 	free(n);
+	this->total_size -= 1;
 	return r;
+}
+
+int RayPool::size() {
+	return this->total_size;
 }

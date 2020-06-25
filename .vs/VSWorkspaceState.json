@@ -1,9 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\src",
-    "\\src\\shaders"
+    "\\assimp-5.0.1\\include\\assimp",
+    "\\src"
   ],
-  "SelectedNode": "\\README.md",
+  "SelectedNode": "\\src\\raypool.h",
   "PreviewInSolutionExplorer": false
 }

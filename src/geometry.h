@@ -33,13 +33,16 @@ struct Vertex {
 //class representing a mesh
 class Mesh : public Surface {
     private:
-        std::vector<Vertex> vertices;
-        std::vector<aiFace> faces;
+        std::vector<Vertex*> vertices;
+        std::vector<aiFace*> faces;
+        std::vector<Surface*> unit_surfaces; //unit surfaces forming the mesh, could be triangles/polygons
         box aabb;
 
     public:
         Mesh(const aiMesh* mesh);
+        void construct_unit_surfaces(); //construct the unit surfaces from scratch with vertex and faces given
         bool hit(const Ray& r, const float t0, const float t1, hitrec& rec);
+
         void bounding_box(box b);
 };
 
@@ -51,7 +54,7 @@ class Polygon : public Surface {
 
     public:
         //a constructor that takes a face and total vertices of a mesh to construct the polygon
-        Polygon(const aiFace &face, const std::vector<Vertex> &total_vertices);
+        Polygon(const aiFace* face, const std::vector<Vertex*> &total_vertices);
         bool hit(const Ray& r, const float t0, const float t1, hitrec& rec);
 };
 

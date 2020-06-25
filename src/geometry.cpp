@@ -13,45 +13,52 @@ void Surface::bounding_box(box b){
 Mesh::Mesh(const aiMesh* mesh) {
     //record vertices
     for (int i = 0; i < mesh->mNumVertices; i++) {
-        Vertex vert;
+        Vertex* vert = new Vertex();
         //read pos
-        aivec_to_vec3(vert.pos, mesh->mVertices[i]);
+        aivec_to_vec3(vert->pos, mesh->mVertices[i]);
         //read norm
-        aivec_to_vec3(vert.norm, mesh->mNormals[i]);
+        aivec_to_vec3(vert->norm, mesh->mNormals[i]);
         //read uv
         aiVector3D uvs = mesh->mTextureCoords[0][i];
-        vert.uv[0] = uvs.x;
-        vert.uv[1] = uvs.y;
+        vert->uv[0] = uvs.x;
+        vert->uv[1] = uvs.y;
         this->vertices.push_back(vert);
     }
     //record faces
     for (int i = 0; i < mesh->mNumFaces; i++) {
-        aiFace face = mesh->mFaces[i];
+        aiFace* face = &mesh->mFaces[i];
         this->faces.push_back(face);
     }
     aivec_to_vec3(this->aabb[0], mesh->mAABB.mMin);
     aivec_to_vec3(this->aabb[1], mesh->mAABB.mMax);
+    this->construct_unit_surfaces();
+}
+
+void Mesh::construct_unit_surfaces() {
+    for (int i = 0; i < this->faces.size(); i++) {
+        aiFace* face = faces[i];
+        Surface* surface;
+        //construct the face got and figure out if it has been hit, if triangle then use the triangle hit method explicitly
+        if (face->mNumIndices == 3) {
+            surface = new Triangle(this->vertices[face->mIndices[0]]->pos, this->vertices[face->mIndices[1]]->pos, this->vertices[face->mIndices[2]]->pos);
+        }
+        //treat all other faces (including convex situations) like a polygon
+        else {
+            surface = new Polygon(face, this->vertices);
+        }
+        //store
+        this->unit_surfaces.push_back(surface);
+    }
 }
 
 bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     //TO-DO: use bounding box to short chain this algorithm
 
-
-    for (int i = 0; i < this->faces.size(); i++) {
-        aiFace face = faces[i];
-        //construct the face got and figure out if it has been hit, if triangle then use the triangle hit method explicitly
-        if (face.mNumIndices == 3) {
-            Triangle triangle = Triangle(this->vertices[face.mIndices[0]].pos, this->vertices[face.mIndices[1]].pos, this->vertices[face.mIndices[2]].pos);
-            bool hit = triangle.hit(r, t0, t1, rec);
-            if (hit) return true;
-        }
-        //treat all other faces (including convex situations) like a polygon
-        else {
-            Polygon polygon = Polygon(face, this->vertices);
-            bool hit = polygon.hit(r, t0, t1, rec);
-            if (hit) return true;
-        }
+    for (int i = 0; i < this->unit_surfaces.size(); i++) {
+        Surface* unit = unit_surfaces[i];
+        if (unit->hit(r, t0, t1, rec)) return true;
     }
+
     return false;
 }
 
@@ -60,19 +67,19 @@ void Mesh::bounding_box(box b) {
     vec3_deep_copy(b[1], this->aabb[1]);
 }
 
-Polygon::Polygon(const aiFace& face, const std::vector<Vertex>& total_vertices) {
+Polygon::Polygon(const aiFace* face, const std::vector<Vertex*>& total_vertices) {
     vec3_zero(this->norm);
-    for (int i = 0; i < face.mNumIndices; i++) {
-        int index = face.mIndices[i];
+    for (int i = 0; i < face->mNumIndices; i++) {
+        int index = face->mIndices[i];
         Vertex vert;
         //deep copy the info
-        vec3_deep_copy(vert.norm, total_vertices[index].norm);
-        vec3_deep_copy(vert.pos, total_vertices[index].pos);
-        vec3_deep_copy(vert.uv, total_vertices[index].uv);
+        vec3_deep_copy(vert.norm, total_vertices[index]->norm);
+        vec3_deep_copy(vert.pos, total_vertices[index]->pos);
+        vec3_deep_copy(vert.uv, total_vertices[index]->uv);
         this->vertices.push_back(vert);
         vec3_add(this->norm, this->norm, vert.norm);
     }
-    vec3_scale(this->norm, this->norm, 1 / face.mNumIndices); //average the vertex norms to get the surface norm
+    vec3_scale(this->norm, this->norm, 1 / face->mNumIndices); //average the vertex norms to get the surface norm
     vec3_norm(this->norm, this->norm);
 }
 
@@ -150,7 +157,7 @@ bool Triangle::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
 
     //actual calculation
     float m = a * ei_hf + b * gf_di + c * dh_eg;
-    float t = (f * ak_jb + e * jc_al + d * bl_kc) / m * (-1.0f);
+    float t = (f * ak_jb + e * jc_al + d * bl_kc) / -m;
     if (t < t0 || t > t1) return false;
     float gamma = (i * ak_jb + h * jc_al + g * bl_kc) / m;
     if (gamma < 0 || gamma > 1) return false;
