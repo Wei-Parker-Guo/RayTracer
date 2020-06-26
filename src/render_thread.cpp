@@ -20,6 +20,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, std::vector<Mesh*>& meshes
 
     for (int i = startX; i < endX; i++) {
         for (int j = startY; j < endY; j++) {
+
             //***********************
             // OPERATION PIXEL
             //***********************

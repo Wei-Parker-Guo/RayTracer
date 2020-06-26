@@ -66,7 +66,7 @@ using namespace std;
 // Global Variables
 // Generally speaking, global variables should be 
 // avoided, but for this small assignment we'll make
-// and exception.
+// an exception.
 //****************************************************
 
 GLfloat Translation[3] = {0.0f, 0.0f, 0.0f};
@@ -388,6 +388,9 @@ void renderFrame(GLFWwindow* window) {
     const int scr_height = rasterizer.getHeight();
     for (int i = 0; i < scr_width; i += prog_disp_span) {
         for (int j = 0; j < scr_height; j += prog_disp_span) {
+            //still process input events during each block intermission
+            glfwPollEvents();
+            while (suspended) glfwPollEvents();
             //figure out parameters for each thread
             int cbx = i + prog_disp_span; //cutoff indicator x
             int cby = j + prog_disp_span; //cutoff indicator y

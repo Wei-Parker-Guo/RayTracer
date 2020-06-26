@@ -1,4 +1,3 @@
-[Note] If you set the pu/pv the shading will be switched to anisotropic, if p then isotropic, the line below will always override the line above for the same command, also for shading model selections.
 [Note] Anything could be written in this txt, the program will filter useless words. Just don't write too much irrelevant or efficiency will drop. DON'T WRITE BLANK LINES it will crash.
 [Write Commands Below]
 -dispw 400
