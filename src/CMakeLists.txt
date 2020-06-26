@@ -23,6 +23,7 @@ set(ASSESSMENT2_SOURCE
     ray.cpp
     raypool.cpp
     rasterizer.cpp
+    render_thread.cpp
     main.cpp
 )
 

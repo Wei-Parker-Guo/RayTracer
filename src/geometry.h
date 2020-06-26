@@ -49,7 +49,7 @@ class Mesh : public Surface {
 //class representing an n-vert polygon
 class Polygon : public Surface {
     public:
-        std::vector<Vertex> vertices;
+        std::vector<Vertex*> vertices;
         vec3 norm;
 
     public:

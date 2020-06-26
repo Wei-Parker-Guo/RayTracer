@@ -10,6 +10,7 @@
 #include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <thread>
 
 //include header file for glfw library so that we can use OpenGL
 #ifdef _WIN32
@@ -33,8 +34,9 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 #include <assimp/postprocess.h>
 #include <assimp/SceneCombiner.h>
 
-//memory allocators
+//memory allocators & threads
 #include "raypool.h"
+#include "render_thread.h"
 
 //pipelines
 #include "geometry.h"     //geometry pipeline
@@ -100,9 +102,12 @@ vector<Camera*> cams;
 float set_hfov = 54.43; //horizontal fov of the camera, default to maya standard default 54.43
 int samples_per_pixel = 2; //sample monte carlo rays per pixel width, defaulted to 2, actual sample number is its square
 int ray_pool_page_size = 64; //page size for the ray allocator
+int thread_n = ceil(fast_sqrt(thread::hardware_concurrency())); //concurrent thread numbers when rendering the scene (set to match cpu core amounts), actual thread num is this num squared and plus some
 int max_ray_bounce = 3; //maximum bounce time of a ray
 
 Rasterizer rasterizer = Rasterizer(Width_global, Height_global); //a single rasterizer pipeline (TODO: enable multi-pipeline rendering for quicker rerender)
+//rasterizer parameters
+int prog_disp_span = 100; //block of pixels to progressively display
 
 const GLFWvidmode * VideoMode_global = NULL;
 
@@ -374,99 +379,51 @@ void renderFrame(GLFWwindow* window) {
     //select the first cam to use for now [TODO]: enable user to switch camera to render and provide a default if not read
     Camera* use_cam = cams[0];
 
-    //figure out parameters for the viewport
-    float aspect_ratio = rasterizer.getHeight() / (float) rasterizer.getWidth();
-    float d = use_cam->near_clip;
-    float a = d * tan(PI * set_hfov / 360); //note that we prefer our user hfov here instead of value from imported camera since assimp has trouble loading it
-    float l = -a;
-    float r = a;
-    float t = a * aspect_ratio;
-    float b = -t;
+    //*************************************************
+    // RENDER EVERY PIXEL within multi-threaded blocks
+    //*************************************************
+    
+    //progressively display blocks, making sure we have cutoffs on edge cases where determined block length is overbound
+    const int scr_width = rasterizer.getWidth();
+    const int scr_height = rasterizer.getHeight();
+    for (int i = 0; i < scr_width; i += prog_disp_span) {
+        for (int j = 0; j < scr_height; j += prog_disp_span) {
+            //figure out parameters for each thread
+            int cbx = i + prog_disp_span; //cutoff indicator x
+            int cby = j + prog_disp_span; //cutoff indicator y
+            const int img_width = prog_disp_span - cbx / scr_width * (cbx % scr_width);
+            const int img_height = prog_disp_span - cby / scr_height * (cby % scr_height);
+            int block_len;
+            if (img_width > img_height) block_len = img_height / thread_n;
+            else block_len = img_width / thread_n;
 
-    //******************************
-    // RENDER EVERY PIXEL
-    //******************************
-
-    //initialize a ray allocator
-    RayPool ray_pool = RayPool(ray_pool_page_size);
-
-    for (int i = 0; i < rasterizer.getWidth(); i++) {
-        for (int j = 0; j < rasterizer.getHeight(); j++) {
-            //still poll events for controls during rendering
-            glfwPollEvents();
-            while (suspended) glfwPollEvents();
-
-            //**************************************
-            // draw to rasterizer if not suspended
-            //**************************************
-
-            //a new color sequence for each pixel
-            colorseq cs;
-
-            //loop over to generate sample rays on a pixel
-            for (int x = 0; x < samples_per_pixel; x++) {
-                for (int y = 0; y < samples_per_pixel; y++) {
-                    float unit_len = 1.0f / samples_per_pixel;
-
-                    //jitter the center of the ray
-                    float jitter_x = rand() % 100 / 100.0f;
-                    float jitter_y = rand() % 100 / 100.0f;
-
-                    //figure out uvs
-                    float u = l + (r - l) * (i + unit_len * x + jitter_x * unit_len) / rasterizer.getWidth();
-                    float v = b + (t - b) * (j + unit_len * y + jitter_y * unit_len) / rasterizer.getHeight();
-                    
-                    //figure out ray
-                    vec3 dir_u;
-                    vec3 dir_v;
-                    vec3 dir_w;
-                    vec3 ray_dir;
-                    vec3_scale(dir_u, use_cam->side, u);
-                    vec3_scale(dir_v, use_cam->up, v);
-                    vec3_scale(dir_w, use_cam->lookat, -d);
-                    vec3_add(ray_dir, dir_u, dir_v);
-                    vec3_add(ray_dir, ray_dir, dir_w);
-                    vec3_norm(ray_dir, ray_dir);
-                    
-                    //construct ray
-                    Ray* new_render_ray = (Ray*) malloc(sizeof(Ray));
-                    vec3_deep_copy(new_render_ray->e, use_cam->pos);
-                    vec3_deep_copy(new_render_ray->d, ray_dir);
-                    new_render_ray->depth = max_ray_bounce;
-                    //add to pool
-                    ray_pool.push(new_render_ray);
+            //construct and run threads to render each divided block
+            vector<thread> render_threads;
+            for (int startX = i; startX < i + img_width; startX += block_len) {
+                for (int startY = j; startY < j + img_height; startY += block_len) {
+                    int cbi = startX + block_len; //cutoff indicator i
+                    int ci = i + img_width; //cutoff i
+                    int cbj = startY + block_len; //cutoff indicator j
+                    int cj = j + img_height; //cutoff j
+                    const int endX = startX + block_len - cbi / ci * (cbi % ci);
+                    const int endY = startY + block_len - cbj / cj * (cbj % cj);
+                    render_threads.push_back(thread(RenderThread(), &rasterizer, meshes, use_cam,
+                        startX, startY, endX, endY,
+                        ray_pool_page_size, set_hfov, samples_per_pixel, max_ray_bounce));
                 }
             }
-            
-            //hit test
-            while (ray_pool.size() != 0) {
-                vec3 c;
-                vec3 yellow = { 1.0f, 1.0f, 0.0f };
-                vec3 dark = { 0.1f, 0.1f, 0.1f };
-                Ray* ray = ray_pool.pop();
-                bool hit = false;
-                for (int i = 0; i < meshes.size(); i++) {
-                    Mesh* mesh = meshes[i];
-                    hitrec rec;
-                    hit = mesh->hit(*ray, d, use_cam->far_clip, rec);
-                    if (hit) break;
-                }
-                free(ray);
-                if (hit) {
-                    vec3_deep_copy(c, yellow);
-                }
-                else vec3_deep_copy(c, dark);
-                color r;
-                vec3_to_color(r, c);
-                cs.push_back(r);
+
+            //finish all threads
+            for (thread& th : render_threads) {
+                th.join();
             }
-
-            rasterizer.setColor(i, j, cs);
-
-            //display the render result by block progressively
-            if (i % 100 == 0 && j % 100 == 0) display(window);
+            display(window);
         }
     }
+
+    //***************************
+    // FINAL RESULTS HANDLING
+    //***************************
 
     //display final results
     display(window);
@@ -569,7 +526,8 @@ enum class token_code {
     set_display_height,
     set_horizontal_fov,
     set_spp,
-    set_bounce
+    set_bounce,
+    set_pixel_blk_size
 };
 
 token_code get_token_code(string const& token){
@@ -578,6 +536,7 @@ token_code get_token_code(string const& token){
     if (token == "-hfov") return token_code::set_horizontal_fov;
     if (token == "-spp") return token_code::set_spp;
     if (token == "-bounce") return token_code::set_bounce;
+    if (token == "-mpbs") return token_code::set_pixel_blk_size;
     return token_code::not_specified;
 }
 
@@ -598,6 +557,9 @@ void read_cmd_tokens(const vector<string> tokens){
             break;
         case token_code::set_bounce:
             max_ray_bounce = stoi(tokens[1]);
+            break;
+        case token_code::set_pixel_blk_size:
+            prog_disp_span = stoi(tokens[1]);
             break;
         default:
             break;

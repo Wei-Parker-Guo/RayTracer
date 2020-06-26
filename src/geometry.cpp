@@ -71,13 +71,13 @@ Polygon::Polygon(const aiFace* face, const std::vector<Vertex*>& total_vertices)
     vec3_zero(this->norm);
     for (int i = 0; i < face->mNumIndices; i++) {
         int index = face->mIndices[i];
-        Vertex vert;
+        Vertex* vert = new Vertex();
         //deep copy the info
-        vec3_deep_copy(vert.norm, total_vertices[index]->norm);
-        vec3_deep_copy(vert.pos, total_vertices[index]->pos);
-        vec3_deep_copy(vert.uv, total_vertices[index]->uv);
+        vec3_deep_copy(vert->norm, total_vertices[index]->norm);
+        vec3_deep_copy(vert->pos, total_vertices[index]->pos);
+        vec3_deep_copy(vert->uv, total_vertices[index]->uv);
         this->vertices.push_back(vert);
-        vec3_add(this->norm, this->norm, vert.norm);
+        vec3_add(this->norm, this->norm, vert->norm);
     }
     vec3_scale(this->norm, this->norm, 1 / face->mNumIndices); //average the vertex norms to get the surface norm
     vec3_norm(this->norm, this->norm);
@@ -85,11 +85,11 @@ Polygon::Polygon(const aiFace* face, const std::vector<Vertex*>& total_vertices)
 
 //The WRF method to check if a point is inside a ploygon (Jordan Curve Theorem)
 //referenced and adapted from https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html
-int p_in_poly(const int nvert, const std::vector<Vertex>& vertices, const vec3 p) {
+int p_in_poly(const int nvert, const std::vector<Vertex*>& vertices, const vec3 p) {
     int i, j, c = 0;
     for (i = 0, j = nvert - 1; i < nvert; j = i++) {
-        if (((vertices[i].pos[1] > p[1]) != (vertices[j].pos[1] > p[1])) &&
-            (p[0] < (vertices[j].pos[0] - vertices[i].pos[0]) * (p[1] - vertices[i].pos[1]) / (vertices[j].pos[1] - vertices[i].pos[1]) + vertices[i].pos[0]))
+        if (((vertices[i]->pos[1] > p[1]) != (vertices[j]->pos[1] > p[1])) &&
+            (p[0] < (vertices[j]->pos[0] - vertices[i]->pos[0]) * (p[1] - vertices[i]->pos[1]) / (vertices[j]->pos[1] - vertices[i]->pos[1]) + vertices[i]->pos[0]))
             c = !c;
     }
     return c;
@@ -102,7 +102,7 @@ bool Polygon::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     //if d.n = 0 then it's parallel to the plane and has no intersect, return false immediately
     if (dn == 0) return false;
     vec3 a;
-    vec3_sub(a, this->vertices[0].pos, r.e);
+    vec3_sub(a, this->vertices[0]->pos, r.e);
     //get the point on the plane
     float t = vec3_mul_inner(a, this->norm) / dn;
     if (t<t0 || t>t1) return false; //return immediately if our of range

@@ -116,6 +116,10 @@ This sets the display width of the viewport to be n pixels. n is a positive noze
 
 This sets the display height of the viewport to be n pixels. n is a positive nozero integer.
 
+• **-mpbs n**
+
+This sets the display/calculation domain of a multi-threading block, bigger number actually boosts speed since we are rasterizing less often. n is a positive nonzero integer.
+
 • **-hfov f**
 
 This sets the the horizontal field of view angle for the camera in degrees. A recommended value is 54.43 for human eyes. f is a positive nonzero float.
