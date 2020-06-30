@@ -15,6 +15,9 @@ typedef vec3 box[2];
 //function to return a combined bounding box including two boxes
 void combine_aabb(const box& a, const box& b, box& out);
 
+//function to copy a bounding box to another
+void copy_box(box& out, const box& in);
+
 //abstract class for any 3D geometry shapes
 class Surface {
     public:
@@ -28,10 +31,10 @@ class Surface {
 };
 
 //class representing a bounding box node
-class BVHNode {
+class BVHNode : public Surface {
     public:
-    Surface* left;
-    Surface* right;
+    BVHNode* left;
+    BVHNode* right;
     box bbox;
 
     //constructor to create an empty node with zero bounding box
@@ -48,15 +51,21 @@ struct Vertex {
     vec2 uv;
 };
 
+//general virtual class respresenting a unit surface type that could form a mesh, often a triangle or polygon
+class UnitSurface : public BVHNode {
+public:
+    UnitSurface();
+};
+
 //class representing a mesh
-class Mesh : public Surface, public BVHNode {
+class Mesh : public BVHNode {
     private:
         std::vector<Vertex*> vertices;
         std::vector<aiFace*> faces;
-        std::vector<Surface*> unit_surfaces; //unit surfaces forming the mesh, could be triangles/polygons
         box aabb;
 
     public:
+        std::vector<UnitSurface*> unit_surfaces; //unit surfaces forming the mesh, could be triangles/polygons
         Mesh(const aiMesh* mesh);
         void construct_unit_surfaces(); //construct the unit surfaces from scratch with vertex and faces given
         bool hit(const Ray& r, const float t0, const float t1, hitrec& rec);
@@ -65,7 +74,7 @@ class Mesh : public Surface, public BVHNode {
 };
 
 //class representing an n-vert polygon
-class Polygon : public Surface, public BVHNode {
+class Polygon : public UnitSurface {
     private:
         std::vector<Vertex*> vertices;
         vec3 norm;
@@ -77,7 +86,7 @@ class Polygon : public Surface, public BVHNode {
 };
 
 //class representing a triangle
-class Triangle : public Surface, public BVHNode {
+class Triangle : public UnitSurface {
     public:
         //coordinates of the triangle, global space right handed
         vec3 a;

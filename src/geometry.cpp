@@ -11,6 +11,11 @@ void combine_aabb(const box& a, const box& b, box& out) {
     }
 }
 
+void copy_box(box& out, const box& in) {
+    vec3_deep_copy(out[0], in[0]);
+    vec3_deep_copy(out[1], in[1]);
+}
+
 //method to determine whether the geometry is hit by the rat
 bool Surface::hit(const Ray& r, const float t0, const float t1, hitrec& rec){
     return true;
@@ -73,12 +78,14 @@ Mesh::Mesh(const aiMesh* mesh) {
     aivec_to_vec3(this->aabb[0], mesh->mAABB.mMin);
     aivec_to_vec3(this->aabb[1], mesh->mAABB.mMax);
     this->construct_unit_surfaces();
+    //construct bounding box
+    this->bounding_box(this->bbox);
 }
 
 void Mesh::construct_unit_surfaces() {
     for (int i = 0; i < this->faces.size(); i++) {
         aiFace* face = faces[i];
-        Surface* surface;
+        UnitSurface* surface;
         //construct the face got and figure out if it has been hit, if triangle then use the triangle hit method explicitly
         if (face->mNumIndices == 3) {
             surface = new Triangle(this->vertices[face->mIndices[0]]->pos, this->vertices[face->mIndices[1]]->pos, this->vertices[face->mIndices[2]]->pos);
@@ -106,6 +113,10 @@ bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
 void Mesh::bounding_box(box& b) {
     vec3_deep_copy(b[0], this->aabb[0]);
     vec3_deep_copy(b[1], this->aabb[1]);
+}
+
+UnitSurface::UnitSurface() {
+    BVHNode::BVHNode();
 }
 
 Polygon::Polygon(const aiFace* face, const std::vector<Vertex*>& total_vertices) {
@@ -172,6 +183,8 @@ Triangle::Triangle(const vec3 a, const vec3 b, const vec3 c) {
     vec3_sub(edge2, this->c, this->a); //dir ac
     vec3_mul_cross(this->norm, edge1, edge2);
     vec3_norm(this->norm, this->norm);
+    //construct bounding box
+    this->bounding_box(this->bbox);
 }
 
 bool Triangle::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {

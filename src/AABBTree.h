@@ -12,6 +12,8 @@ class AABBTree {
 		BVHNode* root_node;
 		//constructor that takes a list of meshes and arrange the triangles into an aabb binary tree
 		AABBTree(std::vector<Mesh*> meshes);
+		//recursive creation function for a node's children
+		BVHNode* create_left_n_right(std::vector<BVHNode*>& surfaces, int AXIS);
 };
 
 #endif
