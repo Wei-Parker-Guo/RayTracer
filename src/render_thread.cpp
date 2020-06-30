@@ -2,7 +2,7 @@
 
 const float PI = 3.1415926;
 
-void RenderThread::operator()(Rasterizer* rasterizer, std::vector<Mesh*>& meshes, Camera* use_cam,
+void RenderThread::operator()(Rasterizer* rasterizer, AABBTree* aabb_tree, Camera* use_cam,
     const int startX, const int startY, const int endX, const int endY, 
     const int ray_pool_page_size, const float set_hfov, const int samples_per_pixel, const int max_ray_bounce) {
 
@@ -70,13 +70,10 @@ void RenderThread::operator()(Rasterizer* rasterizer, std::vector<Mesh*>& meshes
                 vec3 dark = { 0.1f, 0.1f, 0.1f };
                 Ray* ray = ray_pool.pop();
                 bool hit = false;
-                for (int i = 0; i < meshes.size(); i++) {
-                    Mesh* mesh = meshes[i];
-                    hitrec rec;
-                    hit = mesh->hit(*ray, d, use_cam->far_clip, rec);
-                    if (hit) break;
-                }
-                free(ray);
+                //get hit
+                hitrec rec;
+                hit = aabb_tree->root_node->hit(*ray, use_cam->near_clip, use_cam->far_clip, rec);
+                //show collision test result
                 if (hit) {
                     vec3_deep_copy(c, yellow);
                 }

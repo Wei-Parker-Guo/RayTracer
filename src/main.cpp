@@ -40,6 +40,7 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 
 //pipelines
 #include "geometry.h"     //geometry pipeline
+#include "AABBTree.h"     //aabb tree pipeline to accelerate hit detection
 #include "lights.h"       //illumination pipeline
 #include "cameras.h"      //viewport pipeline
 #include "rasterizer.h"   //rasterizer pipeline
@@ -97,6 +98,7 @@ string scene_file_dir = "defaultScene"; //the default scene directory to render
 
 //scene objects
 vector<Mesh*> meshes;
+AABBTree* aabb_tree;
 vector<Light*> lights;
 vector<Camera*> cams;
 
@@ -377,6 +379,11 @@ void renderFrame(GLFWwindow* window) {
     rasterizer.resize(Width_global, Height_global);
     logprintf("Resolution: %d X %d\n", Width_global, Height_global);
 
+    //construct the aabb tree for optimized hit detection
+    logprintf("Constructing AABB Tree for hit detection...");
+    aabb_tree = new AABBTree(meshes);
+    logprintf("done\n");
+
     //select the first cam to use for now [TODO]: enable user to switch camera to render and provide a default if not read
     Camera* use_cam = cams[0];
 
@@ -385,6 +392,7 @@ void renderFrame(GLFWwindow* window) {
     //*************************************************
     
     //progressively display blocks, making sure we have cutoffs on edge cases where determined block length is overbound
+    logprintf("Drawing... ");
     const int scr_width = rasterizer.getWidth();
     const int scr_height = rasterizer.getHeight();
     for (int i = 0; i < scr_width; i += prog_disp_span) {
@@ -411,7 +419,7 @@ void renderFrame(GLFWwindow* window) {
                     int cj = j + img_height; //cutoff j
                     const int endX = startX + block_len - cbi / ci * (cbi % ci);
                     const int endY = startY + block_len - cbj / cj * (cbj % cj);
-                    render_threads.push_back(thread(RenderThread(), &rasterizer, meshes, use_cam,
+                    render_threads.push_back(thread(RenderThread(), &rasterizer, aabb_tree, use_cam,
                         startX, startY, endX, endY,
                         ray_pool_page_size, set_hfov, samples_per_pixel, max_ray_bounce));
                 }
@@ -424,6 +432,7 @@ void renderFrame(GLFWwindow* window) {
             display(window);
         }
     }
+    logprintf("done\n");
 
     //***************************
     // FINAL RESULTS HANDLING

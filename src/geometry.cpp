@@ -7,7 +7,7 @@ void combine_aabb(const box& a, const box& b, box& out) {
         //get min
         out[0][i] = std::min(out[0][i], b[0][i]);
         //get max
-        out[1][i] = std::max(out[0][i], b[1][i]);
+        out[1][i] = std::max(out[1][i], b[1][i]);
     }
 }
 
@@ -53,7 +53,13 @@ bool BVHNode::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     t[7] = fmax(fmax(fmin(t[1], t[2]), fmin(t[3], t[4])), fmin(t[5], t[6]));
     t[8] = fmin(fmin(fmax(t[1], t[2]), fmax(t[3], t[4])), fmax(t[5], t[6]));
     t[9] = (t[8] < 0 || t[7] > t[8]) ? false : t[7];
-    return t[9];
+    bool result = t[9];
+    //if not hit directly return
+    if (!result) return false;
+    //else do a recursive check of its children
+    else {
+        return true;
+    }
 }
 
 Mesh::Mesh(const aiMesh* mesh) {
@@ -78,8 +84,6 @@ Mesh::Mesh(const aiMesh* mesh) {
     aivec_to_vec3(this->aabb[0], mesh->mAABB.mMin);
     aivec_to_vec3(this->aabb[1], mesh->mAABB.mMax);
     this->construct_unit_surfaces();
-    //construct bounding box
-    this->bounding_box(this->bbox);
 }
 
 void Mesh::construct_unit_surfaces() {
@@ -100,14 +104,16 @@ void Mesh::construct_unit_surfaces() {
 }
 
 bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
-    //TO-DO: use bounding box to short chain this algorithm
+    //using the aabb tree to find the hit among its unit surfaces
+    return this->left->hit(r, t0, t1, rec);
 
-    for (int i = 0; i < this->unit_surfaces.size(); i++) {
+    //the old, not efficient iterative method to check each Triangle's hit
+    /*for (int i = 0; i < this->unit_surfaces.size(); i++) {
         Surface* unit = unit_surfaces[i];
         if (unit->hit(r, t0, t1, rec)) return true;
     }
 
-    return false;
+    return false;*/
 }
 
 void Mesh::bounding_box(box& b) {
@@ -229,6 +235,23 @@ void Triangle::bounding_box(box& b) {
         //get min
         b[0][i] = std::min(b[0][i], std::min(this->b[i], this->c[i]));
         //get max
-        b[1][i] = std::max(b[0][i], std::max(this->b[i], this->c[i]));
+        b[1][i] = std::max(b[1][i], std::max(this->b[i], this->c[i]));
     }
+}
+
+TriangleSet::TriangleSet(std::vector<BVHNode*> triangles) {
+    this->triangles = triangles;
+    copy_box(this->bbox, triangles[0]->bbox);
+    for (int i = 0; i < triangles.size(); i++) {
+        combine_aabb(triangles[i]->bbox, this->bbox, this->bbox);
+    }
+}
+
+bool TriangleSet::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
+    for (int i = 0; i < this->triangles.size(); i++) {
+        Surface* unit = triangles[i];
+        if (unit->hit(r, t0, t1, rec)) return true;
+    }
+
+    return false;
 }

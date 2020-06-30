@@ -100,4 +100,15 @@ class Triangle : public UnitSurface {
         void bounding_box(box& b);
 };
 
+//class representing a set of Triangles
+class TriangleSet : public UnitSurface {
+    public:
+        //list of triangles
+        std::vector<BVHNode*> triangles;
+        //constructor to create a set given a list of triangles
+        TriangleSet(std::vector<BVHNode*> triangles);
+        //the hit test just tests each triangle iteratively
+        bool hit(const Ray& r, const float t0, const float t1, hitrec& rec);
+};
+
 #endif
