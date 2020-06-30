@@ -99,10 +99,10 @@ The files accepted by this raytracer will be synced with the accepted file types
 **TrueSpace** ( .cob, .scn )
 
 ## Keyboard features
-1. [Space]                Start a new rendering frame
-2. [F]                    Make the program fullscreen
-4. [Up/Down/Left/Right]   Move the rendered image around
-3. [Esc]/[Q]              Quit the program
+1. [Space]                Start a new rendering frame, if rendering then suspend/continue the render process.
+2. [F]                    Make the program fullscreen.
+4. [Up/Down/Left/Right]   Move the rendered image around.
+3. [Esc]/[Q]              Quit the program.
 
 ## Command Line Options:
 The command line options are taken as a txt file to be specified when program starts for convenience. 

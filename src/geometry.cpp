@@ -1,13 +1,54 @@
 #include "geometry.h"
 
+void combine_aabb(const box& a, const box& b, box& out) {
+    vec3_deep_copy(out[0], a[0]);
+    vec3_deep_copy(out[1], a[1]);
+    for (int i = 0; i < 3; i++) {
+        //get min
+        out[0][i] = std::min(out[0][i], b[0][i]);
+        //get max
+        out[1][i] = std::max(out[0][i], b[1][i]);
+    }
+}
+
 //method to determine whether the geometry is hit by the rat
 bool Surface::hit(const Ray& r, const float t0, const float t1, hitrec& rec){
     return true;
 }
 
 //method to determine bounding box of the geometry
-void Surface::bounding_box(box b){
+void Surface::bounding_box(box& b){
 
+}
+
+BVHNode::BVHNode() {
+    this->left = NULL;
+    this->right = NULL;
+    vec3_zero(this->bbox[0]);
+    vec3_zero(this->bbox[1]);
+}
+
+BVHNode::BVHNode(box& b) {
+    this->left = NULL;
+    this->right = NULL;
+    vec3_deep_copy(this->bbox[0], b[0]);
+    vec3_deep_copy(this->bbox[1], b[1]);
+}
+
+//quicker implementation of bbox hit test that could be integrated on GPU easily
+//referenced and adapted from https://gamedev.stackexchange.com/a/103714/73429
+bool BVHNode::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
+    float t[10];
+    t[1] = (this->bbox[0][0] - r.e[0]) / r.d[0];
+    t[2] = (this->bbox[1][0] - r.e[0]) / r.d[0];
+    t[3] = (this->bbox[0][1] - r.e[1]) / r.d[1];
+    t[4] = (this->bbox[1][1] - r.e[1]) / r.d[1];
+    t[5] = (this->bbox[0][2] - r.e[2]) / r.d[2];
+    t[6] = (this->bbox[1][2] - r.e[2]) / r.d[2];
+    t[7] = fmax(fmax(fmin(t[1], t[2]), fmin(t[3], t[4])), fmin(t[5], t[6]));
+    t[8] = fmin(fmin(fmax(t[1], t[2]), fmax(t[3], t[4])), fmax(t[5], t[6]));
+    t[9] = (t[8] < 0 || t[7] > t[8]) ? false : t[7];
+    return t[9];
 }
 
 Mesh::Mesh(const aiMesh* mesh) {
@@ -62,7 +103,7 @@ bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     return false;
 }
 
-void Mesh::bounding_box(box b) {
+void Mesh::bounding_box(box& b) {
     vec3_deep_copy(b[0], this->aabb[0]);
     vec3_deep_copy(b[1], this->aabb[1]);
 }
@@ -166,4 +207,15 @@ bool Triangle::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     //log hitrec
     rec.push_back(t);
     return true;
+}
+
+void Triangle::bounding_box(box& b) {
+    vec3_deep_copy(b[0], this->a);
+    vec3_deep_copy(b[1], this->a);
+    for (int i = 0; i < 3; i++) {
+        //get min
+        b[0][i] = std::min(b[0][i], std::min(this->b[i], this->c[i]));
+        //get max
+        b[1][i] = std::max(b[0][i], std::max(this->b[i], this->c[i]));
+    }
 }

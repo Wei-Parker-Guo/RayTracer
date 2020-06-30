@@ -83,6 +83,9 @@ int  PosY_saved_global;
 //status
 bool rendering = false;
 
+//log file
+FILE* fp = fopen("logs.txt", "w");
+
 //parameters
 bool using_translucent = false;
 bool using_sketch = false;
@@ -90,7 +93,6 @@ bool suspended = false;
 
 const float PI = 3.1415926;
 
-FILE* fp = fopen("logs.txt", "w");
 string scene_file_dir = "defaultScene"; //the default scene directory to render
 
 //scene objects
@@ -130,7 +132,6 @@ void logprintf(char* format, ...)
     vprintf(format, ap2);
     va_end(ap2);
 }
-
 
 //****************************************************
 // Simple init function
@@ -201,8 +202,8 @@ void retrieve_node_gtrans(aiMatrix4x4 out, const aiScene* scene, const char* nod
     }
     //multiply the transform matrix
     while (!trans_matrices.empty()) {
-        out *= trans_matrices.back();
-        trans_matrices.pop_back();
+        out *= trans_matrices[0];
+        trans_matrices.erase(trans_matrices.begin());
     }
 }
 

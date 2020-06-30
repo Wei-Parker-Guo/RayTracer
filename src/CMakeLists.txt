@@ -24,6 +24,7 @@ set(ASSESSMENT2_SOURCE
     raypool.cpp
     rasterizer.cpp
     render_thread.cpp
+    AABBTree.cpp
     main.cpp
 )
 
