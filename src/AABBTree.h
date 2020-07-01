@@ -5,6 +5,9 @@
 #include <vector>
 #include "geometry.h"
 
+//recursive creation function for node's children, but based on number of objects
+BVHNode* create_left_n_right_n(std::vector<BVHNode*>& surfaces);
+
 //recursive creation function for a node's children
 BVHNode* create_left_n_right(std::vector<BVHNode*>& surfaces, int AXIS, int depth);
 

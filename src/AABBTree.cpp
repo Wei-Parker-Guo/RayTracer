@@ -1,5 +1,45 @@
 #include "AABBTree.h"
 
+BVHNode* create_left_n_right_n(std::vector<BVHNode*>& surfaces) {
+	BVHNode* result = new BVHNode();
+
+	//base case
+	int N = surfaces.size();
+	if (N == 0) {
+		return NULL;
+	}
+
+	if (N == 1) {
+		result->left = surfaces[0];
+		result->right = NULL;
+		copy_box(result->bbox, result->left->bbox);
+	}
+	else if (N == 2) {
+		result->left = surfaces[0];
+		result->right = surfaces[1];
+		combine_aabb(result->left->bbox, result->right->bbox, result->bbox);
+	}
+
+	//recursive case
+	else {
+		copy_box(result->bbox, surfaces[0]->bbox);
+		for (int i = 0; i < surfaces.size(); i++) {
+			combine_aabb(surfaces[i]->bbox, result->bbox, result->bbox);
+		}
+		std::vector<BVHNode*>::iterator left_start_i = surfaces.begin();
+		std::vector<BVHNode*>::iterator left_end_i = surfaces.begin() + N/2;
+		std::vector<BVHNode*>::iterator right_start_i = surfaces.begin() + N / 2 + 1;
+		std::vector<BVHNode*>::iterator right_end_i = surfaces.end();
+		std::vector<BVHNode*> left_list(left_start_i, left_end_i);
+		std::vector<BVHNode*> right_list(right_start_i, right_end_i);
+		surfaces.clear(); //release surfaces from stack
+		result->left = create_left_n_right_n(left_list);
+		result->right = create_left_n_right_n(right_list);
+	}
+
+	return result;
+}
+
 BVHNode* create_left_n_right(std::vector<BVHNode*>& surfaces, int AXIS, int depth) {
 	BVHNode* result = new BVHNode();
 
@@ -22,19 +62,23 @@ BVHNode* create_left_n_right(std::vector<BVHNode*>& surfaces, int AXIS, int dept
 
 	//depth base case to limit stack size of recursion
 	else if (depth == 0) {
-		TriangleSet* set = new TriangleSet(surfaces);
+		//switch to object number partition if we reached the depth
+		result = create_left_n_right_n(surfaces);
+
+		//this one below just groups the undivided into undivided iterative triangle groups, but might be preferred in some situations
+		/*TriangleSet* set = new TriangleSet(surfaces);
 		copy_box(result->bbox, set->bbox);
+		printf("Stack cap of minimal %d triangles.\n", set->triangles.size());*/
 	}
 
 	//recursive case
 	else {
 		//figure out lists to split according to AXIS
-		box b_total;
-		copy_box(b_total, surfaces[0]->bbox);
+		copy_box(result->bbox, surfaces[0]->bbox);
 		for (int i = 0; i < surfaces.size(); i++) {
-			combine_aabb(surfaces[i]->bbox, b_total, b_total);
+			combine_aabb(surfaces[i]->bbox, result->bbox, result->bbox);
 		}
-		float mid = b_total[1][AXIS] / 2;
+		float mid = result->bbox[1][AXIS] / 2;
 		std::vector<BVHNode*> left_list;
 		std::vector<BVHNode*> right_list;
 		for (int i = 0; i < surfaces.size(); i++) {
@@ -42,10 +86,11 @@ BVHNode* create_left_n_right(std::vector<BVHNode*>& surfaces, int AXIS, int dept
 			if (n->bbox[1][AXIS] < mid) left_list.push_back(n);
 			else right_list.push_back(n);
 		}
+		//release some stacks we don't use
+		surfaces.clear();
 		//create the parent
 		result->left = create_left_n_right(left_list, (AXIS + 1) % 3, depth - 1);
 		result->right = create_left_n_right(right_list, (AXIS + 1) % 3, depth - 1);
-		copy_box(result->bbox, b_total);
 	}
 
 	return result;
