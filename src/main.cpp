@@ -88,8 +88,6 @@ bool rendering = false;
 FILE* fp = fopen("logs.txt", "w");
 
 //parameters
-bool using_translucent = false;
-bool using_sketch = false;
 bool suspended = false;
 
 const float PI = 3.1415926;
@@ -279,6 +277,10 @@ bool load_scene(const string& dir) {
         meshes.push_back(new_mesh);
         logprintf("%s\n", mesh->mName.C_Str()); //log the names of the meshes inside
     }
+    //construct the aabb tree for optimized hit detection
+    logprintf("\nConstructing AABB Tree for hit detection...");
+    aabb_tree = new AABBTree(meshes);
+    logprintf("done\n");
 
     //load lights
     logprintf("\nDetected Lights:\n\n");
@@ -375,14 +377,15 @@ void renderFrame(GLFWwindow* window) {
     time_t time_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     logprintf("\n[Rendering Report]\nTime: %sRendering starts.\n", std::ctime(&time_now));
 
+    //log the renderer's parameters
+    logprintf("CPU Thread Number: %d\n", thread_n * thread_n);
+    logprintf("Samples per pixel: %d\n", samples_per_pixel * samples_per_pixel);
+    logprintf("Max bounces: %d\n", max_ray_bounce);
+    logprintf("Field of view: %.2f\n", set_hfov);
+
     //resize rasterizer if necessary
     rasterizer.resize(Width_global, Height_global);
     logprintf("Resolution: %d X %d\n", Width_global, Height_global);
-
-    //construct the aabb tree for optimized hit detection
-    logprintf("Constructing AABB Tree for hit detection...");
-    aabb_tree = new AABBTree(meshes);
-    logprintf("done\n");
 
     //select the first cam to use for now [TODO]: enable user to switch camera to render and provide a default if not read
     Camera* use_cam = cams[0];
