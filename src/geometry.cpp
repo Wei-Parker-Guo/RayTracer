@@ -5,9 +5,9 @@ void combine_aabb(const box& a, const box& b, box& out) {
     vec3_deep_copy(out[1], a[1]);
     for (int i = 0; i < 3; i++) {
         //get min
-        out[0][i] = std::min(out[0][i], b[0][i]);
+        out[0][i] = fmin(out[0][i], b[0][i]);
         //get max
-        out[1][i] = std::max(out[1][i], b[1][i]);
+        out[1][i] = fmax(out[1][i], b[1][i]);
     }
 }
 
@@ -16,13 +16,26 @@ void copy_box(box& out, const box& in) {
     vec3_deep_copy(out[1], in[1]);
 }
 
-//method to determine whether the geometry is hit by the rat
-bool Surface::hit(const Ray& r, const float t0, const float t1, hitrec& rec){
+bool box_hit(box bbox, const Ray& r) {
+    //bounding box hit test
+    float t[10];
+    t[1] = (bbox[0][0] - r.e[0]) / r.d[0];
+    t[2] = (bbox[1][0] - r.e[0]) / r.d[0];
+    t[3] = (bbox[0][1] - r.e[1]) / r.d[1];
+    t[4] = (bbox[1][1] - r.e[1]) / r.d[1];
+    t[5] = (bbox[0][2] - r.e[2]) / r.d[2];
+    t[6] = (bbox[1][2] - r.e[2]) / r.d[2];
+    t[7] = fmax(fmax(fmin(t[1], t[2]), fmin(t[3], t[4])), fmin(t[5], t[6]));
+    t[8] = fmin(fmin(fmax(t[1], t[2]), fmax(t[3], t[4])), fmax(t[5], t[6]));
+    bool result = (t[8] < 0 || t[7] > t[8]) ? false : true;
+    return result;
+}
+
+bool Surface::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     return true;
 }
 
-//method to determine bounding box of the geometry
-void Surface::bounding_box(box& b){
+void Surface::bounding_box(box& b) {
 
 }
 
@@ -40,89 +53,123 @@ BVHNode::BVHNode(box& b) {
     vec3_deep_copy(this->bbox[1], b[1]);
 }
 
+BVHNode::BVHNode(std::vector<Surface*> surfaces, int AXIS, int depth) {
+    int N = surfaces.size();
+
+    //if we reached the depth cap then directly group the triangles into one node and leave recursion
+    if (depth == 0) {
+        this->left = new TriangleSet(surfaces);
+        this->right = NULL;
+        return;
+    }
+
+    //base cases
+    if (N == 1) {
+        this->left = surfaces[0];
+        this->right = NULL;
+        surfaces[0]->bounding_box(this->bbox);
+    }
+    else if (N == 2) {
+        this->left = surfaces[0];
+        this->right = surfaces[1];
+        box left_box;
+        box right_box;
+        surfaces[0]->bounding_box(left_box);
+        surfaces[1]->bounding_box(right_box);
+        combine_aabb(left_box, right_box, this->bbox);
+    }
+
+    //recursive case
+    else {
+        //find midpoint m of the bounding box of surfaces along AXIS
+        box sbox;
+        surfaces[0]->bounding_box(sbox);
+        for (int i = 1; i < surfaces.size(); i++) {
+            box b;
+            surfaces[i]->bounding_box(b);
+            combine_aabb(sbox, b, sbox);
+        }
+        float m = sbox[0][AXIS] + (sbox[1][AXIS] - sbox[0][AXIS]) / 2;
+        //parition the surface list
+        std::vector<Surface*> left_list;
+        std::vector<Surface*> right_list;
+        //try to find the best midpoint that will divide the list evenly
+        for (int a = 0; a < 2; a++) {
+            left_list.clear();
+            right_list.clear();
+            for (int i = 0; i < surfaces.size(); i++) {
+                box b;
+                surfaces[i]->bounding_box(b);
+                float bm = b[0][AXIS] + (b[1][AXIS] - b[0][AXIS]) / 2;
+                if (bm < m) left_list.push_back(surfaces[i]);
+                else right_list.push_back(surfaces[i]);
+            }
+            //reached imperfect divison
+            if (left_list.size() == 0 || right_list.size() == 0) {
+                AXIS = (AXIS + 1) % 3;
+            }
+            else break;
+        }
+        //construct children and link them to parent
+        //if any list has zero length then just assign NULL to children it points to
+        if (left_list.size() == 0) {
+            this->left = NULL;
+            this->right = new TriangleSet(surfaces);
+            this->right->bounding_box(this->bbox);
+            return;
+        }
+        else this->left = new BVHNode(left_list, (AXIS + 1) % 3, depth - 1);
+        if (right_list.size() == 0) {
+            this->right = NULL;
+            this->left = new TriangleSet(surfaces);
+            this->left->bounding_box(this->bbox);
+            return;
+        }
+        else this->right = new BVHNode(right_list, (AXIS + 1) % 3, depth - 1);
+        BVHNode* left = (BVHNode*) this->left;
+        BVHNode* right = (BVHNode*)this->right;
+        combine_aabb(left->bbox, right->bbox, this->bbox);
+    }
+}
+
 //quicker implementation of bbox hit test that could be integrated on GPU easily
 //referenced and adapted from https://gamedev.stackexchange.com/a/103714/73429
 bool BVHNode::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
-    float t[10];
-    t[1] = (this->bbox[0][0] - r.e[0]) / r.d[0];
-    t[2] = (this->bbox[1][0] - r.e[0]) / r.d[0];
-    t[3] = (this->bbox[0][1] - r.e[1]) / r.d[1];
-    t[4] = (this->bbox[1][1] - r.e[1]) / r.d[1];
-    t[5] = (this->bbox[0][2] - r.e[2]) / r.d[2];
-    t[6] = (this->bbox[1][2] - r.e[2]) / r.d[2];
-    t[7] = fmax(fmax(fmin(t[1], t[2]), fmin(t[3], t[4])), fmin(t[5], t[6]));
-    t[8] = fmin(fmin(fmax(t[1], t[2]), fmax(t[3], t[4])), fmax(t[5], t[6]));
-    t[9] = (t[8] < 0 || t[7] > t[8]) ? false : t[7];
-    bool result = t[9];
+    //get bounding box hit
+    bool result = box_hit(this->bbox, r);
+
     //if not hit directly return
     if (!result) return false;
+
     //else do a recursive check of its children
     else {
-        return true;
-    }
-}
-
-Mesh::Mesh(const aiMesh* mesh) {
-    //record vertices
-    for (int i = 0; i < mesh->mNumVertices; i++) {
-        Vertex* vert = new Vertex();
-        //read pos
-        aivec_to_vec3(vert->pos, mesh->mVertices[i]);
-        //read norm
-        aivec_to_vec3(vert->norm, mesh->mNormals[i]);
-        //read uv
-        aiVector3D uvs = mesh->mTextureCoords[0][i];
-        vert->uv[0] = uvs.x;
-        vert->uv[1] = uvs.y;
-        this->vertices.push_back(vert);
-    }
-    //record faces
-    for (int i = 0; i < mesh->mNumFaces; i++) {
-        aiFace* face = &mesh->mFaces[i];
-        this->faces.push_back(face);
-    }
-    aivec_to_vec3(this->aabb[0], mesh->mAABB.mMin);
-    aivec_to_vec3(this->aabb[1], mesh->mAABB.mMax);
-    this->construct_unit_surfaces();
-}
-
-void Mesh::construct_unit_surfaces() {
-    for (int i = 0; i < this->faces.size(); i++) {
-        aiFace* face = faces[i];
-        UnitSurface* surface;
-        //construct the face got and figure out if it has been hit, if triangle then use the triangle hit method explicitly
-        if (face->mNumIndices == 3) {
-            surface = new Triangle(this->vertices[face->mIndices[0]]->pos, this->vertices[face->mIndices[1]]->pos, this->vertices[face->mIndices[2]]->pos);
+        hitrec left_rec, right_rec;
+        bool left_hit;
+        bool right_hit;
+        //NULL Check
+        left_hit = (this->left != NULL) && this->left->hit(r, t0, t1, left_rec);
+        right_hit = (this->right != NULL) && this->right->hit(r, t0, t1, right_rec);
+        //cases
+        if (left_hit && right_hit) {
+            if (left_rec[0] < right_rec[0]) rec = left_rec;
+            else rec = right_rec;
+            return true;
         }
-        //treat all other faces (including convex situations) like a polygon
-        else {
-            surface = new Polygon(face, this->vertices);
+        else if (left_hit) {
+            rec = left_rec;
+            return true;
         }
-        //store
-        this->unit_surfaces.push_back(surface);
+        else if (right_hit) {
+            rec = right_rec;
+            return true;
+        }
+        else
+            return false;
     }
 }
 
-bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
-    //using the aabb tree to find the hit among its unit surfaces
-    return this->left->hit(r, t0, t1, rec);
-
-    //the old, not efficient iterative method to check each Triangle's hit
-    /*for (int i = 0; i < this->unit_surfaces.size(); i++) {
-        Surface* unit = unit_surfaces[i];
-        if (unit->hit(r, t0, t1, rec)) return true;
-    }
-
-    return false;*/
-}
-
-void Mesh::bounding_box(box& b) {
-    vec3_deep_copy(b[0], this->aabb[0]);
-    vec3_deep_copy(b[1], this->aabb[1]);
-}
-
-UnitSurface::UnitSurface() {
-    BVHNode::BVHNode();
+void BVHNode::bounding_box(box& b) {
+    copy_box(b, this->bbox);
 }
 
 Polygon::Polygon(const aiFace* face, const std::vector<Vertex*>& total_vertices) {
@@ -163,7 +210,7 @@ bool Polygon::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     vec3_sub(a, this->vertices[0]->pos, r.e);
     //get the point on the plane
     float t = vec3_mul_inner(a, this->norm) / dn;
-    if (t<t0 || t>t1) return false; //return immediately if our of range
+    if (t<t0 || t>t1) return false; //return immediately if out of range
 
     //send the ray and detect for intersects
     vec3 p;
@@ -189,8 +236,6 @@ Triangle::Triangle(const vec3 a, const vec3 b, const vec3 c) {
     vec3_sub(edge2, this->c, this->a); //dir ac
     vec3_mul_cross(this->norm, edge1, edge2);
     vec3_norm(this->norm, this->norm);
-    //construct bounding box
-    this->bounding_box(this->bbox);
 }
 
 bool Triangle::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
@@ -229,22 +274,82 @@ bool Triangle::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
 }
 
 void Triangle::bounding_box(box& b) {
-    vec3_deep_copy(b[0], this->a);
-    vec3_deep_copy(b[1], this->a);
     for (int i = 0; i < 3; i++) {
         //get min
-        b[0][i] = std::min(b[0][i], std::min(this->b[i], this->c[i]));
+        b[0][i] = fmin(a[i], fmin(this->b[i], this->c[i]));
         //get max
-        b[1][i] = std::max(b[1][i], std::max(this->b[i], this->c[i]));
+        b[1][i] = fmax(a[i], fmax(this->b[i], this->c[i]));
     }
 }
 
-TriangleSet::TriangleSet(std::vector<BVHNode*> triangles) {
-    this->triangles = triangles;
-    copy_box(this->bbox, triangles[0]->bbox);
-    for (int i = 0; i < triangles.size(); i++) {
-        combine_aabb(triangles[i]->bbox, this->bbox, this->bbox);
+Mesh::Mesh(const aiMesh* mesh) {
+    //record vertices
+    for (int i = 0; i < mesh->mNumVertices; i++) {
+        Vertex* vert = new Vertex();
+        //read pos
+        aivec_to_vec3(vert->pos, mesh->mVertices[i]);
+        //read norm
+        aivec_to_vec3(vert->norm, mesh->mNormals[i]);
+        //read uv
+        aiVector3D uvs = mesh->mTextureCoords[0][i];
+        vert->uv[0] = uvs.x;
+        vert->uv[1] = uvs.y;
+        this->vertices.push_back(vert);
     }
+    //record faces
+    for (int i = 0; i < mesh->mNumFaces; i++) {
+        aiFace* face = &(mesh->mFaces[i]);
+        this->faces.push_back(face);
+    }
+    aivec_to_vec3(this->aabb[0], mesh->mAABB.mMin);
+    aivec_to_vec3(this->aabb[1], mesh->mAABB.mMax);
+    this->construct_unit_surfaces();
+}
+
+void Mesh::construct_unit_surfaces() {
+    for (int i = 0; i < this->faces.size(); i++) {
+        aiFace* face = faces[i];
+        //construct the face got and figure out if it has been hit, if triangle then use the triangle hit method explicitly
+        if (face->mNumIndices == 3) {
+            Triangle* surface = new Triangle(this->vertices[face->mIndices[0]]->pos, this->vertices[face->mIndices[1]]->pos, this->vertices[face->mIndices[2]]->pos);
+            //store
+            this->unit_surfaces.push_back(surface);
+        }
+        //treat all other faces (including convex situations) like a polygon
+        else {
+            Polygon* surface = new Polygon(face, this->vertices);
+        }
+    }
+}
+
+bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
+    //check if the bounding box of this mesh is hit, if not directly return false
+    if (!box_hit(this->aabb, r)) return false;
+    else return this->root_node->hit(r, t0, t1, rec);
+
+    //the old, not efficient iterative method to check each Triangle's hit
+    //for (int i = 0; i < this->unit_surfaces.size(); i++) {
+    //    Surface* unit = unit_surfaces[i];
+    //    if (unit->hit(r, t0, t1, rec)) return true;
+    //}
+
+    //return false;
+}
+
+void Mesh::bounding_box(box& b) {
+    vec3_deep_copy(b[0], this->aabb[0]);
+    vec3_deep_copy(b[1], this->aabb[1]);
+}
+
+TriangleSet::TriangleSet(std::vector<Surface*> triangles) {
+    this->triangles = triangles;
+    box sbox;
+    for (int i = 0; i < triangles.size(); i++) {
+        box b;
+        triangles[i]->bounding_box(b);
+        combine_aabb(sbox, b, sbox);
+    }
+    copy_box(this->aabb, sbox);
 }
 
 bool TriangleSet::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
@@ -254,4 +359,8 @@ bool TriangleSet::hit(const Ray& r, const float t0, const float t1, hitrec& rec)
     }
 
     return false;
+}
+
+void TriangleSet::bounding_box(box& b) {
+    copy_box(b, this->aabb);
 }

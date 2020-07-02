@@ -32,7 +32,6 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-#include <assimp/SceneCombiner.h>
 
 //memory allocators & threads
 #include "raypool.h"
@@ -191,9 +190,8 @@ void retrieve_files(const string& pathname, vector<string>& filenames) {
 }
 
 //function to retireve a node's global transform matrix in a scene
-void retrieve_node_gtrans(aiMatrix4x4 out, const aiScene* scene, const char* node_name) {
-    aiNode* root_node = scene->mRootNode;
-    aiNode* this_node = root_node->FindNode(node_name);
+void retrieve_node_gtrans(aiMatrix4x4& out, const aiScene* scene, const char* node_name) {
+    aiNode* this_node = scene->mRootNode->FindNode(node_name);
     //traverse through hierachy to get all transform matrices
     vector<aiMatrix4x4> trans_matrices;
     while (this_node->mParent != NULL) {
@@ -253,7 +251,6 @@ bool load_scene(const string& dir) {
         aiProcess_Triangulate |
         aiProcess_JoinIdenticalVertices |
         aiProcess_GenBoundingBoxes |
-        aiProcess_PreTransformVertices |
         aiProcess_GenUVCoords |
         aiProcess_SortByPType);
 
@@ -272,11 +269,20 @@ bool load_scene(const string& dir) {
     logprintf("\nDetected Meshes:\n\n");
     for (int i = 0; i < scene->mNumMeshes; i++) {
         aiMesh* mesh = scene->mMeshes[i];
+        //apply global trans
+        aiMatrix4x4 gtrans;
+        retrieve_node_gtrans(gtrans, scene, mesh->mName.C_Str());
+        for (int j = 0; j < mesh->mNumVertices; j++) {
+            mesh->mVertices[j] = gtrans * mesh->mVertices[j];
+        }
+        mesh->mAABB.mMin = gtrans * mesh->mAABB.mMin;
+        mesh->mAABB.mMax = gtrans * mesh->mAABB.mMax;
         //store
         Mesh* new_mesh = new Mesh(mesh);
         meshes.push_back(new_mesh);
         logprintf("%s\n", mesh->mName.C_Str()); //log the names of the meshes inside
     }
+
     //construct the aabb tree for optimized hit detection
     logprintf("\nConstructing AABB Tree for hit detection...");
     aabb_tree = new AABBTree(meshes);
@@ -286,6 +292,11 @@ bool load_scene(const string& dir) {
     logprintf("\nDetected Lights:\n\n");
     for (int i = 0; i < scene->mNumLights; i++) {
         aiLight* light = scene->mLights[i];
+        //apply global trans
+        aiMatrix4x4 gtrans;
+        retrieve_node_gtrans(gtrans, scene, light->mName.C_Str());
+        light->mPosition = gtrans * light->mPosition;
+        light->mDirection = gtrans * light->mDirection;
         //store
         Light* new_light;
         if (light->mType == aiLightSourceType::aiLightSource_DIRECTIONAL) new_light = new DirectLight(light); //directional light
@@ -293,13 +304,15 @@ bool load_scene(const string& dir) {
         logprintf("%s\n", light->mName.C_Str());
     }
 
+    //load scene again, but this time with pretransform so we get camera stuff easily
+    const aiScene* cam_scene = importer.ReadFile(scene_name, aiProcess_PreTransformVertices);
+
     //load cameras
     logprintf("\nDetected Cameras:\n\n");
-    for (int i = 0; i < scene->mNumCameras; i++) {
-        aiCamera* cam = scene->mCameras[i];
+    for (int i = 0; i < cam_scene->mNumCameras; i++) {
+        aiCamera* cam = cam_scene->mCameras[i];
         aiMatrix4x4 cam_mat;
         cam->GetCameraMatrix(cam_mat);
-        //retrieve_node_gtrans(cam_mat, scene, cam->mName.C_Str());
         //store
         Camera* new_cam = new Camera(cam, cam_mat);
         cams.push_back(new_cam);
@@ -422,7 +435,7 @@ void renderFrame(GLFWwindow* window) {
                     int cj = j + img_height; //cutoff j
                     const int endX = startX + block_len - cbi / ci * (cbi % ci);
                     const int endY = startY + block_len - cbj / cj * (cbj % cj);
-                    render_threads.push_back(thread(RenderThread(), &rasterizer, aabb_tree, use_cam,
+                    render_threads.push_back(thread(RenderThread(), &rasterizer, *aabb_tree, use_cam,
                         startX, startY, endX, endY,
                         ray_pool_page_size, set_hfov, samples_per_pixel, max_ray_bounce));
                 }
