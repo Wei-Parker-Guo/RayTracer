@@ -7,10 +7,10 @@ AABBTree::AABBTree(std::vector<Mesh*>& meshes) {
 	//the hit function of mesh objects will handle the triangle tree
 	std::vector<Surface*> mesh_surfaces;
 	for (Mesh* mesh : meshes) {
-		mesh->root_node = new BVHNode(mesh->unit_surfaces, 0, 1024);
+		mesh->root_node = new BVHNode(mesh->unit_surfaces, 0, 64);
 		mesh_surfaces.push_back(mesh);
 	}
 
 	//recursively parition the meshes
-	this->mesh_root = new BVHNode(mesh_surfaces, 0, 1024);
+	this->mesh_root = new BVHNode(mesh_surfaces, 0, 64);
 }

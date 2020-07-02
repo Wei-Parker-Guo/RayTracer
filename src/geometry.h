@@ -9,7 +9,10 @@ behaviors, including bound boxes for efficiency. */
 #include <vector>
 #include <assimp/mesh.h>
 
-typedef std::vector<float> hitrec;
+typedef struct hitrec {
+    char mesh_id[32];
+    float t;
+};
 typedef vec3 box[2];
 
 //function to return a combined bounding box including two boxes
@@ -17,6 +20,11 @@ void combine_aabb(const box& a, const box& b, box& out);
 
 //function to copy a bounding box to another
 void copy_box(box& out, const box& in);
+
+//bounding box hit test
+//quicker implementation of bbox hit test that could be integrated on GPU easily
+//referenced and adapted from https://gamedev.stackexchange.com/a/103714/73429
+bool box_hit(box bbox, const Ray& r);
 
 //abstract base class of any geometry concept
 class Surface {
@@ -61,14 +69,17 @@ private:
     vec3 norm;
 
 public:
+    //info
+    char mesh_id[32];
     //a constructor that takes a face and total vertices of a mesh to construct the polygon
-    Polygon(const aiFace* face, const std::vector<Vertex*>& total_vertices);
+    Polygon(const aiFace* face, const std::vector<Vertex*>& total_vertices, char* id);
     bool hit(const Ray& r, const float t0, const float t1, hitrec& rec) override;
 };
 
 //class representing a triangle
 class Triangle : public Surface {
 public:
+    char mesh_id[32];
     //coordinates of the triangle, global space right handed
     vec3 a;
     vec3 b;
@@ -76,7 +87,7 @@ public:
     vec3 norm;
 
 public:
-    Triangle(const vec3 a, const vec3 b, const vec3 c);
+    Triangle(const vec3 a, const vec3 b, const vec3 c, char* id);
     bool hit(const Ray& r, const float t0, const float t1, hitrec& rec) override;
     void bounding_box(box& b) override;
 };
@@ -88,6 +99,7 @@ class Mesh : public Surface {
         std::vector<aiFace*> faces;
 
     public:
+        char id[32];
         box aabb;
         BVHNode* root_node; // root node of the triangle trees in this mesh
         std::vector<Surface*> unit_surfaces; //unit surfaces forming the mesh, could be triangles/polygons

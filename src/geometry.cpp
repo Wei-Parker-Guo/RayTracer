@@ -17,8 +17,7 @@ void copy_box(box& out, const box& in) {
 }
 
 bool box_hit(box bbox, const Ray& r) {
-    //bounding box hit test
-    float t[10];
+    float t[9];
     t[1] = (bbox[0][0] - r.e[0]) / r.d[0];
     t[2] = (bbox[1][0] - r.e[0]) / r.d[0];
     t[3] = (bbox[0][1] - r.e[1]) / r.d[1];
@@ -84,7 +83,7 @@ BVHNode::BVHNode(std::vector<Surface*> surfaces, int AXIS, int depth) {
         //find midpoint m of the bounding box of surfaces along AXIS
         box sbox;
         surfaces[0]->bounding_box(sbox);
-        for (int i = 1; i < surfaces.size(); i++) {
+        for (int i = 0; i < surfaces.size(); i++) {
             box b;
             surfaces[i]->bounding_box(b);
             combine_aabb(sbox, b, sbox);
@@ -132,8 +131,6 @@ BVHNode::BVHNode(std::vector<Surface*> surfaces, int AXIS, int depth) {
     }
 }
 
-//quicker implementation of bbox hit test that could be integrated on GPU easily
-//referenced and adapted from https://gamedev.stackexchange.com/a/103714/73429
 bool BVHNode::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     //get bounding box hit
     bool result = box_hit(this->bbox, r);
@@ -151,7 +148,7 @@ bool BVHNode::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
         right_hit = (this->right != NULL) && this->right->hit(r, t0, t1, right_rec);
         //cases
         if (left_hit && right_hit) {
-            if (left_rec[0] < right_rec[0]) rec = left_rec;
+            if (left_rec.t < right_rec.t) rec = left_rec;
             else rec = right_rec;
             return true;
         }
@@ -172,7 +169,10 @@ void BVHNode::bounding_box(box& b) {
     copy_box(b, this->bbox);
 }
 
-Polygon::Polygon(const aiFace* face, const std::vector<Vertex*>& total_vertices) {
+Polygon::Polygon(const aiFace* face, const std::vector<Vertex*>& total_vertices, char* id) {
+    //record info
+    strcpy(this->mesh_id, id);
+    //record geometry
     vec3_zero(this->norm);
     for (int i = 0; i < face->mNumIndices; i++) {
         int index = face->mIndices[i];
@@ -218,14 +218,17 @@ bool Polygon::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     //get count of intersects
     int count = p_in_poly(this->vertices.size(), this->vertices, p);
     if (count) {
-        rec.push_back(t);
+        strcpy(rec.mesh_id, this->mesh_id);
         return true;
     }
 
     return false;
 }
 
-Triangle::Triangle(const vec3 a, const vec3 b, const vec3 c) {
+Triangle::Triangle(const vec3 a, const vec3 b, const vec3 c, char* id) {
+    //record info
+    strcpy(this->mesh_id, id);
+    //record vertex
     vec3_deep_copy(this->a, a);
     vec3_deep_copy(this->b, b);
     vec3_deep_copy(this->c, c);
@@ -269,7 +272,8 @@ bool Triangle::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     float beta = (j * ei_hf + k * gf_di + l * dh_eg) / m;
     if (beta < 0 || beta >(1 - gamma)) return false;
     //log hitrec
-    rec.push_back(t);
+    rec.t = t;
+    strcpy(rec.mesh_id, this->mesh_id);
     return true;
 }
 
@@ -283,6 +287,8 @@ void Triangle::bounding_box(box& b) {
 }
 
 Mesh::Mesh(const aiMesh* mesh) {
+    //record info
+    std::strcpy(this->id, mesh->mName.C_Str());
     //record vertices
     for (int i = 0; i < mesh->mNumVertices; i++) {
         Vertex* vert = new Vertex();
@@ -311,13 +317,13 @@ void Mesh::construct_unit_surfaces() {
         aiFace* face = faces[i];
         //construct the face got and figure out if it has been hit, if triangle then use the triangle hit method explicitly
         if (face->mNumIndices == 3) {
-            Triangle* surface = new Triangle(this->vertices[face->mIndices[0]]->pos, this->vertices[face->mIndices[1]]->pos, this->vertices[face->mIndices[2]]->pos);
+            Triangle* surface = new Triangle(this->vertices[face->mIndices[0]]->pos, this->vertices[face->mIndices[1]]->pos, this->vertices[face->mIndices[2]]->pos, this->id);
             //store
             this->unit_surfaces.push_back(surface);
         }
         //treat all other faces (including convex situations) like a polygon
         else {
-            Polygon* surface = new Polygon(face, this->vertices);
+            Polygon* surface = new Polygon(face, this->vertices, this->id);
         }
     }
 }
@@ -353,12 +359,20 @@ TriangleSet::TriangleSet(std::vector<Surface*> triangles) {
 }
 
 bool TriangleSet::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
+    float oldt = t1;
+    bool result = false;
     for (int i = 0; i < this->triangles.size(); i++) {
         Surface* unit = triangles[i];
-        if (unit->hit(r, t0, t1, rec)) return true;
+        hitrec newrec;
+        if (unit->hit(r, t0, t1, newrec) && newrec.t < oldt) {
+            result = true;
+            rec.t = newrec.t;
+            strcpy(rec.mesh_id, newrec.mesh_id);
+            oldt = rec.t;
+        }
     }
 
-    return false;
+    return result;
 }
 
 void TriangleSet::bounding_box(box& b) {

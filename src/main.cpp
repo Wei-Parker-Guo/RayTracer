@@ -246,9 +246,9 @@ bool load_scene(const string& dir) {
     //analyze and record the data we need
     //we will have tangent, triangles, vertices optimiaztion, forced explicit uv mapping, aabb bounding box after this
     const aiScene* scene = importer.ReadFile(scene_name,
+        aiProcess_Triangulate |
         aiProcess_GenSmoothNormals | //smooth the normals
         aiProcess_CalcTangentSpace |
-        aiProcess_Triangulate |
         aiProcess_JoinIdenticalVertices |
         aiProcess_GenBoundingBoxes |
         aiProcess_GenUVCoords |

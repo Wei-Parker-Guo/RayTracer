@@ -72,13 +72,31 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                 bool hit = false;
                 //get hit
                 hitrec rec;
+                rec.t = use_cam->far_clip;
                 for (int i = 0; i < aabb_tree.meshes.size(); i++) {
                     Mesh* mesh = aabb_tree.meshes[i];
-                    hit = mesh->hit(*ray, use_cam->near_clip, use_cam->far_clip, rec);
-                    if (hit) break;
+                    hitrec newrec;
+                    if (mesh->hit(*ray, use_cam->near_clip, use_cam->far_clip, newrec)) {
+                        hit = true;
+                        if ((newrec.t < rec.t)) {
+                            rec.t = newrec.t;
+                            strcpy(rec.mesh_id, newrec.mesh_id);
+                        }
+                    }
                 }
+
                 //show collision test result
                 if (hit) {
+                    //determine hit mesh color
+                    for (int i = 0; i < aabb_tree.meshes.size(); i++) {
+                        Mesh* mesh = aabb_tree.meshes[i];
+                        if (!strcmp(mesh->id, rec.mesh_id)) {
+                            float ratio = (i + 1.0f) / aabb_tree.meshes.size();
+                            vec3 frac = { ratio, ratio * ratio, 1.0f };
+                            vec3_fraction(yellow, yellow, frac);
+                            break;
+                        }
+                    }
                     vec3_deep_copy(c, yellow);
                 }
                 else vec3_deep_copy(c, dark);
