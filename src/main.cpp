@@ -43,7 +43,7 @@ STRONGLY NOT RECOMMENDED for GLFW setup */
 #include "lights.h"       //illumination pipeline
 #include "cameras.h"      //viewport pipeline
 #include "rasterizer.h"   //rasterizer pipeline
-
+#include "toojpeg.h"      //rasterizer img IO pipeline
 //dirent for file and directories management
 #include "dirent.h"
 
@@ -109,6 +109,7 @@ int max_ray_bounce = 3; //maximum bounce time of a ray
 Rasterizer rasterizer = Rasterizer(Width_global, Height_global); //a single rasterizer pipeline (TODO: enable multi-pipeline rendering for quicker rerender)
 //rasterizer parameters
 int prog_disp_span = 100; //block of pixels to progressively display
+std::ofstream out_file("render_result.jpg", std::ios_base::out | std::ios_base::binary); //out stream to save the rasterizer's image to
 
 const GLFWvidmode * VideoMode_global = NULL;
 
@@ -130,6 +131,48 @@ void logprintf(char* format, ...)
 
     vprintf(format, ap2);
     va_end(ap2);
+}
+
+//****************************************************
+// Image IO Stuff
+//****************************************************
+
+void write_char(unsigned char byte) {
+    out_file << byte;
+}
+
+bool save_jpg() {
+    // image params
+    const auto width = rasterizer.getWidth();
+    const auto height = rasterizer.getHeight();
+    // RGB: one byte each for red, green, blue
+    const auto bytesPerPixel = 3;
+    // allocate memory
+    auto image = new unsigned char[width * height * bytesPerPixel];
+    // create img
+    for (auto y = 0; y < height; y++)
+        for (auto x = 0; x < width; x++)
+        {
+            // memory location of current pixel
+            auto offset = (y * width + x) * bytesPerPixel;
+            // rgb
+            vec3 c;
+            rasterizer.getColor(x, height - y - 1, c);
+            image[offset] = max(0, min(255, (int)floor(c[0] * 256.0)));
+            image[offset + 1] = max(0, min(255, (int)floor(c[1] * 256.0)));
+            image[offset + 2] = max(0, min(255, (int)floor(c[2] * 256.0)));
+        }
+    // start JPEG compression
+    // note: myOutput is the function defined in line 18, it saves the output in example.jpg
+    // optional parameters:
+    const bool isRGB = true;  // true = RGB image, else false = grayscale
+    const auto quality = 90;    // compression quality: 0 = worst, 100 = best, 80 to 90 are most often used
+    const bool downsample = false; // false = save as YCbCr444 JPEG (better quality), true = YCbCr420 (smaller file)
+    const char* comment = "Render Result"; // arbitrary JPEG comment
+    auto ok = TooJpeg::writeJpeg(write_char, image, width, height, isRGB, quality, downsample, comment);
+    delete[] image;
+    // error => exit code 1
+    return ok ? 1 : 0;
 }
 
 //****************************************************
@@ -488,7 +531,13 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
         case GLFW_KEY_ESCAPE: 
         case GLFW_KEY_Q:
             glfwSetWindowShouldClose(window, GLFW_TRUE);
-            if (rendering && suspended) exit(0); //quit directly if suspended
+            if (rendering && suspended) {
+                //save the jpg img
+                if (save_jpg()) logprintf("Render result saved to render_result.jpg\n");
+                else logprintf("IO Error: writing jpg image failed.\n");
+                out_file.close();
+                exit(0); //quit directly if suspended
+            }
             break; 
         case GLFW_KEY_LEFT :
             Translation[0]-=1.0f;
@@ -696,6 +745,11 @@ int main(int argc, char *argv[]) {
 
         glfwPollEvents();        
     }
+
+    //save the jpg img
+    if (save_jpg()) logprintf("Render result saved to render_result.jpg\n");
+    else logprintf("IO Error: writing jpg image failed.\n");
+    out_file.close();
 
     //close the log file
     fclose(fp);

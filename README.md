@@ -11,6 +11,7 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 4. CUDA
 5. dirent.h for directory/file manipulations
 6. linmath.h under GLFW Dependencies
+8. tooljpeg jpeg encoder from https://create.stephan-brumme.com/toojpeg/
 7. Code references are enclosed as inline comments.
 
 # Render Results
@@ -56,6 +57,7 @@ This is the exact repulication of the implementer's build process.
 2. Material editing and creating.
 3. Viewport customization.
 4. Midpoint Partitioning BVH Tree acceleration for ray hits.
+5. Render result saving to jpeg image.
 
 ## Accepted Model Files:
 The files accepted by this raytracer will be synced with the accepted file types of Assimp.

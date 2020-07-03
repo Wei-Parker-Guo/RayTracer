@@ -25,6 +25,7 @@ set(ASSESSMENT2_SOURCE
     rasterizer.cpp
     render_thread.cpp
     AABBTree.cpp
+    toojpeg.cpp
     main.cpp
 )
 
