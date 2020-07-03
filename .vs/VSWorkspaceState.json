@@ -1,8 +1,10 @@
 {
   "ExpandedNodes": [
     "",
+    "\\assimp-5.0.1",
+    "\\assimp-5.0.1\\include\\assimp",
     "\\src"
   ],
-  "SelectedNode": "\\src\\materials.cpp",
+  "SelectedNode": "\\src\\CMakeLists.txt",
   "PreviewInSolutionExplorer": false
 }

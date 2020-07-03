@@ -34,6 +34,9 @@ void rgb_to_grayscale(vec3 r, const vec3 rgb);
 //function to zero out a vector
 void vec3_zero(vec3 r);
 
+//function to multiply each element of a vector with a float
+void vec3_mul_float(vec3 r, const vec3 a, const float b);
+
 //function to deep copy an aiVector3D to vec3
 void aivec_to_vec3(vec3 r, const aiVector3D& v);
 

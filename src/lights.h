@@ -1,5 +1,5 @@
-#ifndef LIGHTS
-#define LIGHTS
+#ifndef LIGHTS_H
+#define LIGHTS_H
 
 #include "fast_math.h"
 #include "assimp/light.h"

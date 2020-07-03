@@ -2,7 +2,7 @@
 
 const float PI = 3.1415926;
 
-void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camera* use_cam,
+void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camera* use_cam, std::vector<Light*> lights,
     const int startX, const int startY, const int endX, const int endY, 
     const int ray_pool_page_size, const float set_hfov, const int samples_per_pixel, const int max_ray_bounce) {
 
@@ -63,16 +63,16 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                 }
             }
 
-            //hit test
+            //**************************************
+            //Calculation of the ray return color
+            //**************************************
+
             while (ray_pool.size() != 0) {
-                vec3 c;
-                vec3 yellow = { 1.0f, 1.0f, 0.0f };
-                vec3 dark = { 0.1f, 0.1f, 0.1f };
                 Ray* ray = ray_pool.pop();
                 bool hit = false;
                 //get hit
                 hitrec rec;
-                rec.t = use_cam->far_clip;
+                rec.t = INFINITY;
                 for (int i = 0; i < aabb_tree.meshes.size(); i++) {
                     Mesh* mesh = aabb_tree.meshes[i];
                     hitrec newrec;
@@ -81,28 +81,74 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                         if ((newrec.t < rec.t)) {
                             rec.t = newrec.t;
                             strcpy(rec.mesh_id, newrec.mesh_id);
+                            vec3_deep_copy(rec.norm, newrec.norm);
                         }
                     }
                 }
 
-                //show collision test result
+                //handle the info and calculate color
+                vec3 c;
                 if (hit) {
-                    //determine hit mesh color
+                    //determine mesh shade
                     for (int i = 0; i < aabb_tree.meshes.size(); i++) {
                         Mesh* mesh = aabb_tree.meshes[i];
+                        //determine the mesh
                         if (!strcmp(mesh->id, rec.mesh_id)) {
-                            float ratio = (i + 1.0f) / aabb_tree.meshes.size();
-                            vec3 frac = { ratio, ratio * ratio, 1.0f };
-                            vec3_fraction(yellow, yellow, frac);
+                            vec3 p;
+                            ray->get_point(rec.t, p);
+                            mesh->material->apply_shade(c, p, rec.norm, lights);
                             break;
                         }
                     }
-                    vec3_deep_copy(c, yellow);
                 }
-                else vec3_deep_copy(c, dark);
+                else vec3_zero(c);
+                free(ray); //delete ray since we no longer needs it
                 color r;
                 vec3_to_color(r, c);
                 cs.push_back(r);
+
+            //**************************************
+            //uncomment this section to do hit test
+            //**************************************
+            //while (ray_pool.size() != 0) {
+            //    vec3 c;
+            //    vec3 yellow = { 1.0f, 1.0f, 0.0f };
+            //    vec3 dark = { 0.1f, 0.1f, 0.1f };
+            //    Ray* ray = ray_pool.pop();
+            //    bool hit = false;
+            //    //get hit
+            //    hitrec rec;
+            //    rec.t = use_cam->far_clip;
+            //    for (int i = 0; i < aabb_tree.meshes.size(); i++) {
+            //        Mesh* mesh = aabb_tree.meshes[i];
+            //        hitrec newrec;
+            //        if (mesh->hit(*ray, use_cam->near_clip, use_cam->far_clip, newrec)) {
+            //            hit = true;
+            //            if ((newrec.t < rec.t)) {
+            //                rec.t = newrec.t;
+            //                strcpy(rec.mesh_id, newrec.mesh_id);
+            //            }
+            //        }
+            //    }
+
+            //    //show collision test result
+            //    if (hit) {
+            //        //determine hit mesh color
+            //        for (int i = 0; i < aabb_tree.meshes.size(); i++) {
+            //            Mesh* mesh = aabb_tree.meshes[i];
+            //            if (!strcmp(mesh->id, rec.mesh_id)) {
+            //                float ratio = (i + 1.0f) / aabb_tree.meshes.size();
+            //                vec3 frac = { ratio, ratio * ratio, 1.0f };
+            //                vec3_fraction(yellow, yellow, frac);
+            //                break;
+            //            }
+            //        }
+            //        vec3_deep_copy(c, yellow);
+            //    }
+            //    else vec3_deep_copy(c, dark);
+                //color r;
+                //vec3_to_color(r, c);
+                //cs.push_back(r);
             }
 
             rasterizer->setColor(i, j, cs);

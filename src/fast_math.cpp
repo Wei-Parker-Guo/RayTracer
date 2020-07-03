@@ -53,6 +53,12 @@ void vec3_zero(vec3 r) {
     r[2] = 0.0f;
 }
 
+void vec3_mul_float(vec3 r, const vec3 a, const float b) {
+    r[0] = a[0] * b;
+    r[1] = a[1] * b;
+    r[2] = a[2] * b;
+}
+
 void aivec_to_vec3(vec3 r, const aiVector3D& v) {
     r[0] = v.x;
     r[1] = v.y;

@@ -55,6 +55,7 @@ This is the exact repulication of the implementer's build process.
 1. Multiple model file formats supporting.
 2. Material editing and creating.
 3. Viewport customization.
+4. Midpoint Partitioning BVH Tree acceleration for ray hits.
 
 ## Accepted Model Files:
 The files accepted by this raytracer will be synced with the accepted file types of Assimp.

@@ -8,10 +8,12 @@ behaviors, including bound boxes for efficiency. */
 #include "ray.h"
 #include <vector>
 #include <assimp/mesh.h>
+#include "materials.h"
 
 typedef struct hitrec {
     char mesh_id[32];
     float t;
+    vec3 norm;
 };
 typedef vec3 box[2];
 
@@ -36,7 +38,7 @@ class Surface {
 };
 
 //abstract class representing a bounding box node
-class BVHNode : Surface {
+class BVHNode : public Surface {
     public:
     Surface* left;
     Surface* right;
@@ -84,10 +86,13 @@ public:
     vec3 a;
     vec3 b;
     vec3 c;
+    vec3 an;
+    vec3 bn;
+    vec3 cn;
     vec3 norm;
 
 public:
-    Triangle(const vec3 a, const vec3 b, const vec3 c, char* id);
+    Triangle(const vec3 a, const vec3 b, const vec3 c, const vec3 an, const vec3 bn, const vec3 cn, char* id);
     bool hit(const Ray& r, const float t0, const float t1, hitrec& rec) override;
     void bounding_box(box& b) override;
 };
@@ -99,11 +104,15 @@ class Mesh : public Surface {
         std::vector<aiFace*> faces;
 
     public:
+        //info
         char id[32];
+        //material of this mesh, future work might be extending this structure to accept layers of materials to assign to faces
+        Material* material;
+        //geometry
         box aabb;
         BVHNode* root_node; // root node of the triangle trees in this mesh
         std::vector<Surface*> unit_surfaces; //unit surfaces forming the mesh, could be triangles/polygons
-        Mesh(const aiMesh* mesh);
+        Mesh(const aiMesh* mesh, Material* mat);
         void construct_unit_surfaces(); //construct the unit surfaces from scratch with vertex and faces given
         bool hit(const Ray& r, const float t0, const float t1, hitrec& rec) override;
 

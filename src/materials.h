@@ -1,12 +1,12 @@
-#ifndef MATERIALS
-#define MATERIALS
+#ifndef MATERIALS_H
+#define MATERIALS_H
 
 #include <vector>
+#include <assimp/material.h>
 #include "fast_math.h"
-#include "geometry.h"
 #include "lights.h"
 
-enum class texture_type {
+enum class mat_texture_type {
 	base_color,
 	specular,
 	metallic,
@@ -17,32 +17,29 @@ enum class texture_type {
 
 struct Texture {
 	unsigned int id;
-	texture_type type;
+	mat_texture_type type;
 };
 
 //the virtual class representing all materials
 class Material {
 	public:
-		//list of communal attributes
-		vec3 base_c;
-		vec3 ambient_c;
-		vec3 reflect_c;
-		std::vector<Texture*> texes;
-
-		//virtual methods to override
-
-		//method to apply the shade on an input color to retrieve the shaded one, with light and triangle info given
-		virtual void apply_shade(vec3 r, const vec3 p, const Triangle& t, Light& light);
+		//method to apply the shade on an input color to retrieve the shaded one, with lights and triangle info given
+		virtual void apply_shade(vec3 r, const vec3 p, const vec3 norm, std::vector<Light*> lights);
 };
 
 //a basic lambert material
-class LambertMat : Material {
+class LambertMat : public Material {
 	public:
-		//constructor
-		LambertMat(const vec3 base_c, const vec3 ambient_c, const vec3 reflect_c);
+		vec3 base_c;
+		vec3 ambient_c;
+		//std::vector<Texture*> texes;
+
+		//constructors
+		LambertMat(aiMaterial* mat);
+		LambertMat(const vec3 base_color, const vec3 ambient_color);
 
 		//methods
-		void apply_shade(vec3 r, const vec3 p, const Triangle& t, Light& light);
+		void apply_shade(vec3 r, const vec3 p, const vec3 norm, std::vector<Light*> lights) override;
 };
 
 #endif

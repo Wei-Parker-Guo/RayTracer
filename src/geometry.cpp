@@ -16,6 +16,12 @@ void copy_box(box& out, const box& in) {
     vec3_deep_copy(out[1], in[1]);
 }
 
+void hitrec_deep_copy(hitrec& out, const hitrec& in) {
+    out.t = in.t;
+    strcpy(out.mesh_id, in.mesh_id);
+    vec3_deep_copy(out.norm, in.norm);
+}
+
 bool box_hit(box bbox, const Ray& r) {
     float t[9];
     t[1] = (bbox[0][0] - r.e[0]) / r.d[0];
@@ -148,16 +154,16 @@ bool BVHNode::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
         right_hit = (this->right != NULL) && this->right->hit(r, t0, t1, right_rec);
         //cases
         if (left_hit && right_hit) {
-            if (left_rec.t < right_rec.t) rec = left_rec;
-            else rec = right_rec;
+            if (left_rec.t < right_rec.t) hitrec_deep_copy(rec, left_rec);
+            else hitrec_deep_copy(rec, right_rec);
             return true;
         }
         else if (left_hit) {
-            rec = left_rec;
+            hitrec_deep_copy(rec, left_rec);
             return true;
         }
         else if (right_hit) {
-            rec = right_rec;
+            hitrec_deep_copy(rec, right_rec);
             return true;
         }
         else
@@ -225,19 +231,20 @@ bool Polygon::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     return false;
 }
 
-Triangle::Triangle(const vec3 a, const vec3 b, const vec3 c, char* id) {
+Triangle::Triangle(const vec3 a, const vec3 b, const vec3 c, const vec3 an, const vec3 bn, const vec3 cn, char* id) {
     //record info
     strcpy(this->mesh_id, id);
     //record vertex
     vec3_deep_copy(this->a, a);
     vec3_deep_copy(this->b, b);
     vec3_deep_copy(this->c, c);
-    //calculate surface norm by taking the cross product of two edges
-    vec3 edge1;
-    vec3 edge2;
-    vec3_sub(edge1, this->b, this->a); //dir ab
-    vec3_sub(edge2, this->c, this->a); //dir ac
-    vec3_mul_cross(this->norm, edge1, edge2);
+    vec3_deep_copy(this->an, an);
+    vec3_deep_copy(this->bn, bn);
+    vec3_deep_copy(this->cn, cn);
+    //record surface norm by averaging the three vertices' norm
+    vec3_zero(this->norm);
+    vec3_add(this->norm, this->an, this->bn);
+    vec3_add(this->norm, this->norm, this->cn);
     vec3_norm(this->norm, this->norm);
 }
 
@@ -271,8 +278,20 @@ bool Triangle::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     if (gamma < 0 || gamma > 1) return false;
     float beta = (j * ei_hf + k * gf_di + l * dh_eg) / m;
     if (beta < 0 || beta >(1 - gamma)) return false;
+    //we hit, interpolate the normal by barycentric coordinates here to obatin point norm
+    float alpha = 1 - gamma - beta;
+    vec3 bf;
+    vec3 gf;
+    vec3 pn;
+    vec3_mul_float(pn, this->an, alpha);
+    vec3_mul_float(bf, this->bn, beta);
+    vec3_mul_float(gf, this->cn, gamma);
+    vec3_add(pn, pn, bf);
+    vec3_add(pn, pn, gf);
+    vec3_norm(pn, pn);
     //log hitrec
     rec.t = t;
+    vec3_deep_copy(rec.norm, pn);
     strcpy(rec.mesh_id, this->mesh_id);
     return true;
 }
@@ -286,9 +305,11 @@ void Triangle::bounding_box(box& b) {
     }
 }
 
-Mesh::Mesh(const aiMesh* mesh) {
+Mesh::Mesh(const aiMesh* mesh, Material* mat) {
     //record info
     std::strcpy(this->id, mesh->mName.C_Str());
+    //record material
+    this->material = mat;
     //record vertices
     for (int i = 0; i < mesh->mNumVertices; i++) {
         Vertex* vert = new Vertex();
@@ -317,7 +338,9 @@ void Mesh::construct_unit_surfaces() {
         aiFace* face = faces[i];
         //construct the face got and figure out if it has been hit, if triangle then use the triangle hit method explicitly
         if (face->mNumIndices == 3) {
-            Triangle* surface = new Triangle(this->vertices[face->mIndices[0]]->pos, this->vertices[face->mIndices[1]]->pos, this->vertices[face->mIndices[2]]->pos, this->id);
+            Triangle* surface = new Triangle(this->vertices[face->mIndices[0]]->pos, this->vertices[face->mIndices[1]]->pos, this->vertices[face->mIndices[2]]->pos,
+                this->vertices[face->mIndices[0]]->norm, this->vertices[face->mIndices[1]]->norm, this->vertices[face->mIndices[2]]->norm,
+                this->id);
             //store
             this->unit_surfaces.push_back(surface);
         }
@@ -359,15 +382,14 @@ TriangleSet::TriangleSet(std::vector<Surface*> triangles) {
 }
 
 bool TriangleSet::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
-    float oldt = t1;
+    float oldt = INFINITY;
     bool result = false;
     for (int i = 0; i < this->triangles.size(); i++) {
         Surface* unit = triangles[i];
         hitrec newrec;
         if (unit->hit(r, t0, t1, newrec) && newrec.t < oldt) {
             result = true;
-            rec.t = newrec.t;
-            strcpy(rec.mesh_id, newrec.mesh_id);
+            hitrec_deep_copy(rec, newrec);
             oldt = rec.t;
         }
     }

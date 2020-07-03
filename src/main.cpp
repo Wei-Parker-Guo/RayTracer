@@ -277,8 +277,15 @@ bool load_scene(const string& dir) {
         }
         mesh->mAABB.mMin = gtrans * mesh->mAABB.mMin;
         mesh->mAABB.mMax = gtrans * mesh->mAABB.mMax;
+        //get this meshes material
+        aiMaterial* aimesh_mat = scene->mMaterials[mesh->mMaterialIndex];
+        Material* mesh_mat;
+        if (strstr(aimesh_mat->GetName().C_Str(), "lambert") != NULL) {
+            mesh_mat = new LambertMat(aimesh_mat);
+            logprintf("Associated this mesh with lambert material: %s\n", aimesh_mat->GetName().C_Str());
+        }
         //store
-        Mesh* new_mesh = new Mesh(mesh);
+        Mesh* new_mesh = new Mesh(mesh, mesh_mat);
         meshes.push_back(new_mesh);
         logprintf("%s\n", mesh->mName.C_Str()); //log the names of the meshes inside
     }
@@ -296,12 +303,17 @@ bool load_scene(const string& dir) {
         aiMatrix4x4 gtrans;
         retrieve_node_gtrans(gtrans, scene, light->mName.C_Str());
         light->mPosition = gtrans * light->mPosition;
+        light->mDirection = aiVector3D(0, 0, -1); //reset the local direction because it doesn't comply with maya
         light->mDirection = gtrans * light->mDirection;
         //store
         Light* new_light;
         if (light->mType == aiLightSourceType::aiLightSource_DIRECTIONAL) new_light = new DirectLight(light); //directional light
         lights.push_back(new_light);
         logprintf("%s\n", light->mName.C_Str());
+        logprintf("Position: %.2f %.2f %.2f; Direction: %.2f %.2f %.2f; Color: %.2f %.2f %.2f;\n",
+            light->mPosition.x, light->mPosition.y, light->mPosition.z,
+            light->mDirection.x, light->mDirection.y, light->mDirection.z,
+            light->mColorDiffuse.r, light->mColorDiffuse.g, light->mColorDiffuse.b);
     }
 
     //load scene again, but this time with pretransform so we get camera stuff easily
@@ -435,7 +447,7 @@ void renderFrame(GLFWwindow* window) {
                     int cj = j + img_height; //cutoff j
                     const int endX = startX + block_len - cbi / ci * (cbi % ci);
                     const int endY = startY + block_len - cbj / cj * (cbj % cj);
-                    render_threads.push_back(thread(RenderThread(), &rasterizer, *aabb_tree, use_cam,
+                    render_threads.push_back(thread(RenderThread(), &rasterizer, *aabb_tree, use_cam, lights, 
                         startX, startY, endX, endY,
                         ray_pool_page_size, set_hfov, samples_per_pixel, max_ray_bounce));
                 }
