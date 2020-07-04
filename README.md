@@ -17,10 +17,25 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 # Render Results
 1. All the logs are recorded in logs.txt in raytracer.exe's directory.
 
+2. Render result of the default stanford bunny scene with basic lambert materials and shadow rays:
+
+<p align="center">
+  <img width="540" src="docs&images/render_result_standford_rabbit_lambert_shadow.jpg">
+</p>
+
+<p align="center">
+	Samples per pixel: 4<br/>
+	Samples per ray: 4<br/>
+	Epsilon: 0.000100<br/>
+	Max bounces: 3<br/>
+	Field of view: 60.00<br/>
+	Resolution: 1920 X 1080<br/>
+</p>
+
 # Dummy Program Logic Flow
 
 <p align="center">
-  <img width="960" height="960" src="docs&images/dummy_logic_flow.jpg">
+  <img width="540" src="docs&images/dummy_logic_flow.jpg">
 </p>
 
 # USAGE
@@ -134,6 +149,14 @@ This sets the anti-aliasing samples per pixel used by the raytracer, higher mean
 • **-bounce n**
 
 This sets the maximum bouncing time of each light reflect, higher means slower/better viusals. n is a positive integer.
+
+• **-spr n**
+
+This sets the samples splitted out from each ray after a hit for anti-aliasing and soft shadows. n is a positive nonzero integer.
+
+• **-eps f**
+
+This sets the epsilon amount of next ray offset to avoid self-collison. f should be a fairly small positive float.
 
 # Additonal Features
 

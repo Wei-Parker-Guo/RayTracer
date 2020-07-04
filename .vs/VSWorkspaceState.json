@@ -2,9 +2,8 @@
   "ExpandedNodes": [
     "",
     "\\assimp-5.0.1",
-    "\\assimp-5.0.1\\include\\assimp",
     "\\src"
   ],
-  "SelectedNode": "\\src\\CMakeLists.txt",
+  "SelectedNode": "\\src\\render_thread.cpp",
   "PreviewInSolutionExplorer": false
 }

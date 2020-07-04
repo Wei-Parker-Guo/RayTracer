@@ -8,7 +8,12 @@ Ray::Ray() {
     this->depth = 0;
 }
 
-Ray::Ray(const vec3 origin, const vec3 direction, const bool is_dir, const int depth) {
+Ray::Ray(const vec3 origin, const vec3 direction, const bool is_dir, const int depth, const int id, const ray_type type) {
+    //record info
+    this->id = id;
+    this->type = type;
+
+    //figure out geometry info
     vec3 dir;
     vec3_deep_copy(dir, direction);
 
@@ -38,4 +43,22 @@ void Ray::reflect(const vec3 norm, const float t, const float epsilon, Ray& ray)
 
     //figure out reflect direction
     vec3_reflect(ray.d, this->d, norm);
+}
+
+void Ray::split(std::vector<Ray*> out_rays, const int n, const float epsilon) {
+    for (Ray* ray : out_rays) {
+        //jitter amounts
+        float jitter_x = epsilon * (rand() % 200 / 200.0f - 1.0f);
+        float jitter_y = epsilon * (rand() % 200 / 200.0f - 1.0f);
+        float jitter_z = epsilon * (rand() % 200 / 200.0f - 1.0f);
+        //apply
+        vec3 add_amount = { jitter_x, jitter_y, jitter_z };
+        vec3_add(ray->d, this->d, add_amount);
+        vec3_norm(ray->d, ray->d);
+        //stack the rest of the info
+        vec3_deep_copy(ray->e, this->e);
+        ray->id = this->id;
+        ray->depth = this->depth - 1; //since its a split and forward we decrease the depth
+    }
+    out_rays.push_back(this);
 }

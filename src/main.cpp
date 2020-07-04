@@ -101,7 +101,9 @@ vector<Camera*> cams;
 
 //ray parameters
 float set_hfov = 54.43; //horizontal fov of the camera, default to maya standard default 54.43
+float epsilon = 0.001f; //epsilon to add to next ray for avoiding self collision
 int samples_per_pixel = 2; //sample monte carlo rays per pixel width, defaulted to 2, actual sample number is its square
+int samples_per_ray = 4; //sample rays per parent ray, defaulted to 4, actual number will be this number plus one
 int ray_pool_page_size = 64; //page size for the ray allocator
 int thread_n = ceil(fast_sqrt(thread::hardware_concurrency())); //concurrent thread numbers when rendering the scene (set to match cpu core amounts), actual thread num is this num squared and plus some
 int max_ray_bounce = 3; //maximum bounce time of a ray
@@ -346,8 +348,8 @@ bool load_scene(const string& dir) {
         aiMatrix4x4 gtrans;
         retrieve_node_gtrans(gtrans, scene, light->mName.C_Str());
         light->mPosition = gtrans * light->mPosition;
-        light->mDirection = aiVector3D(0, 0, -1); //reset the local direction because it doesn't comply with maya
-        light->mDirection = gtrans * light->mDirection;
+        //light->mDirection = aiVector3D(0, 0, -1); //reset the local direction because it doesn't comply with maya
+        light->mDirection = gtrans * light->mDirection * -1.0f;
         //store
         Light* new_light;
         if (light->mType == aiLightSourceType::aiLightSource_DIRECTIONAL) new_light = new DirectLight(light); //directional light
@@ -448,6 +450,8 @@ void renderFrame(GLFWwindow* window) {
     //log the renderer's parameters
     logprintf("CPU Thread Number: %d\n", thread_n * thread_n);
     logprintf("Samples per pixel: %d\n", samples_per_pixel * samples_per_pixel);
+    logprintf("Samples per ray: %d\n", samples_per_ray + 1);
+    logprintf("Epsilon: %f\n", epsilon);
     logprintf("Max bounces: %d\n", max_ray_bounce);
     logprintf("Field of view: %.2f\n", set_hfov);
 
@@ -492,7 +496,7 @@ void renderFrame(GLFWwindow* window) {
                     const int endY = startY + block_len - cbj / cj * (cbj % cj);
                     render_threads.push_back(thread(RenderThread(), &rasterizer, *aabb_tree, use_cam, lights, 
                         startX, startY, endX, endY,
-                        ray_pool_page_size, set_hfov, samples_per_pixel, max_ray_bounce));
+                        ray_pool_page_size, set_hfov, samples_per_pixel, samples_per_ray, max_ray_bounce, epsilon));
                 }
             }
 
@@ -617,7 +621,9 @@ enum class token_code {
     set_horizontal_fov,
     set_spp,
     set_bounce,
-    set_pixel_blk_size
+    set_pixel_blk_size,
+    set_samples_per_ray,
+    set_epsilon
 };
 
 token_code get_token_code(string const& token){
@@ -627,6 +633,8 @@ token_code get_token_code(string const& token){
     if (token == "-spp") return token_code::set_spp;
     if (token == "-bounce") return token_code::set_bounce;
     if (token == "-mpbs") return token_code::set_pixel_blk_size;
+    if (token == "-spr") return token_code::set_samples_per_ray;
+    if (token == "-eps") return token_code::set_epsilon;
     return token_code::not_specified;
 }
 
@@ -650,6 +658,12 @@ void read_cmd_tokens(const vector<string> tokens){
             break;
         case token_code::set_pixel_blk_size:
             prog_disp_span = stoi(tokens[1]);
+            break;
+        case token_code::set_samples_per_ray:
+            samples_per_ray = stoi(tokens[1]);
+            break;
+        case token_code::set_epsilon:
+            epsilon = stof(tokens[1]);
             break;
         default:
             break;

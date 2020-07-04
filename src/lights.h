@@ -9,6 +9,8 @@ class Light {
 	public:
 		//method to figure out a light's direction and color based on a point given
 		virtual void get_dir_c(vec3 r, vec3 c, const vec3 ppos);
+		//method to only get direction
+		virtual void get_dir(vec3 r, const vec3 ppos);
 };
 
 class DirectLight : public Light {
@@ -18,8 +20,10 @@ class DirectLight : public Light {
 	public:
 		//construct a directlight from an aiLight type
 		DirectLight(aiLight* light);
-		//methods
+		//method to get direction and color
 		void get_dir_c(vec3 r, vec3 c, const vec3 ppos);
+		//method to only get direction
+		void get_dir(vec3 r, const vec3 ppos);
 };
 
 #endif
