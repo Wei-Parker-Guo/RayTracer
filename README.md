@@ -17,7 +17,7 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 # Render Results
 1. All the logs are recorded in logs.txt in raytracer.exe's directory.
 
-2. Render result of the default stanford bunny scene with basic lambert materials and shadow rays:
+2. Render result of the default stanford bunny scene with basic lambert materials and shadow rays with two directional lights:
 
 <p align="center">
   <img src="docs&images/render_result_standford_rabbit_lambert_shadow.jpg">
@@ -72,7 +72,7 @@ This is the exact repulication of the implementer's build process.
 2. Material editing and creating.
 3. Viewport customization.
 4. Midpoint Partitioning BVH Tree acceleration for ray hits.
-5. Render result saving to jpeg image.
+5. Render result saving to jpeg image on program exit.
 
 ## Accepted Model Files:
 The files accepted by this raytracer will be synced with the accepted file types of Assimp.
