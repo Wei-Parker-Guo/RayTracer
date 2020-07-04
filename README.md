@@ -20,7 +20,7 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 2. Render result of the default stanford bunny scene with basic lambert materials and shadow rays:
 
 <p align="center">
-  <img width="540" src="docs&images/render_result_standford_rabbit_lambert_shadow.jpg">
+  <img src="docs&images/render_result_standford_rabbit_lambert_shadow.jpg">
 </p>
 
 <p align="center">
@@ -35,7 +35,7 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 # Dummy Program Logic Flow
 
 <p align="center">
-  <img width="540" src="docs&images/dummy_logic_flow.jpg">
+  <img src="docs&images/dummy_logic_flow.jpg">
 </p>
 
 # USAGE
