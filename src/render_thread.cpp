@@ -24,7 +24,7 @@ bool get_hit(const AABBTree& aabb_tree, const Ray* ray, const float t0, const fl
 
 void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camera* use_cam, std::vector<Light*> lights,
     const int startX, const int startY, const int endX, const int endY, 
-    const int ray_pool_page_size, const float set_hfov, const int samples_per_pixel, const int samples_per_ray, const int max_ray_bounce, const float epsilon) {
+    const int ray_pool_page_size, const float set_hfov, const int samples_per_pixel, const int samples_per_ray, const int max_ray_bounce, const float epsilon, const float ray_eps) {
 
     //initialize a ray allocator
     RayPool ray_pool = RayPool(ray_pool_page_size);
@@ -140,7 +140,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                 loi_rays.push_back(r);
                             }
                             //jitter split the single shatter ray by epsilon
-                            loi_tr->split(loi_rays, samples_per_ray, epsilon);
+                            loi_tr->split(loi_rays, samples_per_ray, ray_eps);
                             //run hit test on each ray to figure out result
                             for (Ray* loi_r : loi_rays) {
                                 hitrec sh_rec;

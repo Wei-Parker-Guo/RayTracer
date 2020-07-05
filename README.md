@@ -20,13 +20,14 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 2. Render result of the default stanford bunny scene with basic lambert materials and shadow rays with two directional lights:
 
 <p align="center">
-  <img src="docs&images/render_result_standford_rabbit_lambert_shadow.jpg">
+  <img src="docs&images/render_result_standford_rabbit_lambert_softshadow.jpg">
 </p>
 
 <p align="center">
 	Samples per pixel: 4<br/>
 	Samples per ray: 4<br/>
 	Epsilon: 0.000100<br/>
+	Ray Jitter Epsilon: 0.100000<br/>
 	Max bounces: 3<br/>
 	Field of view: 60.00<br/>
 	Resolution: 1920 X 1080<br/>
@@ -157,6 +158,10 @@ This sets the samples splitted out from each ray after a hit for anti-aliasing a
 • **-eps f**
 
 This sets the epsilon amount of next ray offset to avoid self-collison. f should be a fairly small positive float.
+
+• **-reps f**
+
+This sets the epsilon amount of splitted ray's offset from the parent ray, higher means softer and more random splits. f should be a fairly small positive float.
 
 # Additonal Features
 
