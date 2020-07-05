@@ -341,19 +341,24 @@ bool load_scene(const string& dir) {
     aabb_tree = new AABBTree(meshes);
     logprintf("done\n");
 
+    //load scene again, but this time with pretransform so we get camera stuff easily
+    const aiScene* cam_scene = importer.ReadFile(scene_name, aiProcess_PreTransformVertices);
+
     //load lights
     logprintf("\nDetected Lights:\n\n");
-    for (int i = 0; i < scene->mNumLights; i++) {
-        aiLight* light = scene->mLights[i];
+    for (int i = 0; i < cam_scene->mNumLights; i++) {
+        aiLight* light = cam_scene->mLights[i];
+        //reverse light direction for rendering purpose
+        light->mDirection *= -1.0f;
         //apply global trans
-        aiMatrix4x4 gtrans;
-        retrieve_node_gtrans(gtrans, scene, light->mName.C_Str());
-        light->mPosition = gtrans * light->mPosition;
+        //aiMatrix4x4 gtrans;
+        //retrieve_node_gtrans(gtrans, scene, light->mName.C_Str());
+        //light->mPosition = gtrans * light->mPosition;
         //light->mDirection = aiVector3D(0, 0, -1); //reset the local direction because it doesn't comply with maya
-        aiQuaternion rot;
-        aiVector3D pos;
-        gtrans.DecomposeNoScaling(rot, pos);
-        light->mDirection = rot.Rotate(light->mDirection) * -1.0f;
+        //aiQuaternion rot;
+        //aiVector3D pos;
+        //gtrans.DecomposeNoScaling(rot, pos);
+        //light->mDirection = rot.Rotate(light->mDirection) * -1.0f;
         //store
         Light* new_light;
         if (light->mType == aiLightSourceType::aiLightSource_DIRECTIONAL) new_light = new DirectLight(light); //directional light
@@ -364,9 +369,6 @@ bool load_scene(const string& dir) {
             light->mDirection.x, light->mDirection.y, light->mDirection.z,
             light->mColorDiffuse.r, light->mColorDiffuse.g, light->mColorDiffuse.b);
     }
-
-    //load scene again, but this time with pretransform so we get camera stuff easily
-    const aiScene* cam_scene = importer.ReadFile(scene_name, aiProcess_PreTransformVertices);
 
     //load cameras
     logprintf("\nDetected Cameras:\n\n");
