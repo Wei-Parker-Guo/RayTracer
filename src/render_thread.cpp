@@ -23,11 +23,11 @@ bool get_hit(const AABBTree& aabb_tree, const Ray* ray, const float t0, const fl
 }
 
 void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camera* use_cam, std::vector<Light*> lights,
-    const int startX, const int startY, const int endX, const int endY, 
+    const int startX, const int startY, const int endX, const int endY,
     const int ray_pool_page_size, const float set_hfov, const int samples_per_pixel, const int samples_per_ray, const int max_ray_bounce, const float epsilon, const float ray_eps) {
 
     //initialize a ray allocator
-    RayPool ray_pool = RayPool(ray_pool_page_size);
+    RayPool* ray_pool = new RayPool(ray_pool_page_size);
 
     //figure out constant parameters for the viewport
     const float aspect_ratio = rasterizer->getHeight() / (float)rasterizer->getWidth();
@@ -81,22 +81,20 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                     vec3_deep_copy(new_render_ray->e, use_cam->pos);
                     vec3_deep_copy(new_render_ray->d, ray_dir);
                     new_render_ray->depth = max_ray_bounce;
+                    new_render_ray->contrib = 1;
+                    vec3_zero(new_render_ray->c_cache);
                     //add to pool
-                    ray_pool.push(new_render_ray);
+                    ray_pool->push(new_render_ray);
 
                     //construct shadow ray
                     Ray* new_shadow_ray = (Ray*)malloc(sizeof(Ray));
                     new_shadow_ray->id = ray_id;
                     new_shadow_ray->type = ray_type::shadow;
+                    new_shadow_ray->depth = max_ray_bounce;
                     vec3_deep_copy(new_shadow_ray->e, use_cam->pos);
                     vec3_deep_copy(new_shadow_ray->d, ray_dir);
                     //add to pool
-                    ray_pool.push(new_shadow_ray);
-
-                    //construct layered depth rays
-                    for (int d = max_ray_bounce - 1; d >= 0; d--) {
-
-                    }
+                    ray_pool->push(new_shadow_ray);
 
                     //update ray id
                     ray_id += 1;
@@ -107,20 +105,22 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
             //Calculation of the ray return color
             //**************************************
 
-            std::vector<shadow_ray_rec*> shadow_fracs;
+            shadow_ray_rec shadow_rec;
+            shadow_rec.shadow_frac = 0;
 
-            while (ray_pool.size() != 0) {
-                Ray* ray = ray_pool.pop();
+            while (ray_pool->size() != 0) {
+                Ray* ray = ray_pool->pop();
                 hitrec rec;
-                bool hit = get_hit(aabb_tree, ray, use_cam->near_clip, use_cam->far_clip, rec);
+                bool hit = get_hit(aabb_tree, ray, epsilon, INFINITY, rec);
 
                 //handle the info and calculate color
                 vec3 c;
                 vec3_zero(c);
+                float total_sh_frac = 0; //result
+                bool draw_this = false; //boolean to determine if we draw this or continue to split
                 if (hit) {
                     //determine shadow color if it's a shadow ray
                     if (ray->type == ray_type::shadow) {
-                        float total_sh_frac = 0; //result
                         for (Light* light : lights) {
                             float sh_frac = 0;
                             //get hit position
@@ -129,108 +129,207 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                             //figure out the light-object intersection ray
                             vec3 loi_dir;
                             light->get_dir(loi_dir, ppos); //assumes result is normalized
-                            vec3 loi_pos;
-                            vec3_mul_float(loi_pos, loi_dir, epsilon);
-                            vec3_add(loi_pos, loi_pos, ppos);
                             //create a subset of the loi rays to generate soft shadows
-                            Ray* loi_tr = new Ray(loi_pos, loi_dir, true, 0, ray->id, ray_type::shadow); //total, single shadow ray
+                            Ray* loi_tr = new Ray(ppos, loi_dir, true, 0, ray->id, ray_type::shadow); //total, single shadow ray
                             std::vector<Ray*> loi_rays;
                             for (int split_n = 0; split_n < samples_per_ray; split_n++) {
-                                Ray* r = new Ray(loi_pos, loi_dir, true, 0, ray->id, ray_type::shadow);
+                                Ray* r = new Ray(ppos, loi_dir, true, 0, ray->id, ray_type::shadow);
                                 loi_rays.push_back(r);
                             }
                             //jitter split the single shatter ray by epsilon
                             loi_tr->split(loi_rays, samples_per_ray, ray_eps);
+                            loi_rays.push_back(loi_tr);
                             //run hit test on each ray to figure out result
                             for (Ray* loi_r : loi_rays) {
                                 hitrec sh_rec;
                                 if (get_hit(aabb_tree, loi_r, epsilon, use_cam->far_clip, sh_rec)) sh_frac += 0;
                                 else sh_frac += 1;
+                                delete loi_r; //free heap memory
                             }
                             //average sampling result
                             sh_frac /= loi_rays.size();
                             total_sh_frac += sh_frac;
+                            loi_rays.clear();
                         }
                         //average light_result
                         total_sh_frac /= lights.size();
-                        shadow_ray_rec sh_r_rec;
-                        sh_r_rec.shadow_frac = total_sh_frac;
-                        sh_r_rec.ray_id = ray->id;
-                        shadow_fracs.push_back(&sh_r_rec);
+                        shadow_rec.shadow_frac = total_sh_frac;
+                        shadow_rec.ray_id = ray->id;
+                        draw_this = false;
                     }
 
                     //determine mesh shade if it's a reflect ray
                     else {
-                        for (int i = 0; i < aabb_tree.meshes.size(); i++) {
-                            Mesh* mesh = aabb_tree.meshes[i];
+                        for (Mesh* mesh : aabb_tree.meshes) {
                             //determine the mesh
                             if (!strcmp(mesh->id, rec.mesh_id)) {
+                                //hitpoint
                                 vec3 p;
                                 ray->get_point(rec.t, p);
-                                mesh->material->apply_shade(c, p, rec.norm, lights);
-                                break;
-                            }
-                        }
-                        //apply shadow fraction
-                        for (shadow_ray_rec* frac : shadow_fracs) {
-                            if (frac->ray_id == ray->id) {
-                                vec3_mul_float(c, c, frac->shadow_frac);
-                                break;
+                                //don't generate subrays for reflectivity if the material doesn't need it
+                                //it's not necessay to explicitly break the loop here, it will not elongate the loop so we will jump to next subpixel's shadow ray
+                                if (!mesh->material->use_reflectivity) {
+                                    vec3 contrib;
+                                    mesh->material->apply_shade(contrib, p, use_cam->pos, rec.norm, lights);
+                                    //if the ray comes from a reflective ray, we need to apply contribution
+                                    if (ray->contrib != 1) {
+                                        vec3_mul_float(contrib, contrib, ray->contrib);
+                                    }
+                                    vec3_add(ray->c_cache, ray->c_cache, contrib);
+                                    vec3_mul_float(c, ray->c_cache, shadow_rec.shadow_frac);
+                                    draw_this = true;
+                                }
+
+                                //generate subrays for reflectivity rendering
+                                else if (ray->depth > 0 && mesh->material->use_reflectivity) {
+
+                                    //**********************************************
+                                    //PROCESSING OF THIS RAY'S COLOR CONTRIBUTION
+                                    //**********************************************
+
+                                    //figure out the nonreflective color contribution of this hit ray (not the subray)
+                                    vec3 c_self_contrib;
+                                    vec3_zero(c_self_contrib);
+                                    float prev_contrib = mesh->material->reflectivity;
+                                    ray->contrib = 1 - prev_contrib;
+                                    for (int contrib_n = ray->depth; contrib_n < max_ray_bounce; contrib_n++) {
+                                        ray->contrib = prev_contrib * (1 - mesh->material->reflectivity);
+                                        prev_contrib = prev_contrib - ray->contrib;
+                                    }
+                                    //figure out shadow contrib
+                                    ray->sh_cache = shadow_rec.shadow_frac; //base case
+                                    mesh->material->apply_shade(c_self_contrib, p, use_cam->pos, rec.norm, lights);
+                                    //apply self contrib factor
+                                    vec3_mul_float(c_self_contrib, c_self_contrib, ray->contrib);
+                                    //apply shadow factor
+                                    //vec3_mul_float(c_self_contrib, c_self_contrib, ray->sh_cache);
+                                    //concatenate with cache
+                                    if (ray->depth == max_ray_bounce) vec3_deep_copy(ray->c_cache, c_self_contrib); //base case for the first hit
+                                    else vec3_add(ray->c_cache, ray->c_cache, c_self_contrib);
+
+
+                                    //**********************************
+                                    //SUB REFLECT RAY GENERATION
+                                    //**********************************
+
+                                    //create a single proper sub reflect ray instance
+                                    Ray* rr = (Ray*)malloc(sizeof(Ray));
+                                    rr->id = ray_id;
+                                    rr->depth = ray->depth - 1;
+                                    rr->type = ray_type::reflect;
+                                    ray->reflect(rec.norm, rec.t, epsilon, *rr);
+                                    vec3_deep_copy(rr->c_cache, ray->c_cache);
+                                    rr->sh_cache = ray->sh_cache;
+                                    rr->contrib = ray->contrib;
+
+                                    //create a monte carlo subset of this ray
+                                    std::vector<Ray*> subrays;
+                                    for (int split_n = 0; split_n < samples_per_ray; split_n++) {
+                                        Ray* r = (Ray*)malloc(sizeof(Ray));
+                                        r->id = ray_id;
+                                        r->depth = rr->depth;
+                                        r->type = ray_type::reflect;
+                                        vec3_deep_copy(r->c_cache, ray->c_cache);
+                                        r->sh_cache = rr->sh_cache;
+                                        r->contrib = rr->contrib;
+                                        subrays.push_back(r);
+                                    }
+
+                                    //split and store into the subset vector
+                                    rr->split(subrays, samples_per_ray, ray_eps);
+                                    subrays.push_back(rr);
+
+                                    //store into ray pool, this will elongate the ray processing loop until we get to bottom depth
+                                    for (Ray* subray : subrays) {
+                                        ray_pool->push(subray);
+                                        ////we create and store one more shadow ray here to calculate the subray's shadow factor on the run
+                                        //Ray* new_shadow_ray = (Ray*)malloc(sizeof(Ray));
+                                        //new_shadow_ray->id = ray_id;
+                                        //new_shadow_ray->type = ray_type::shadow;
+                                        //vec3_deep_copy(new_shadow_ray->e, rr->e);
+                                        //vec3_deep_copy(new_shadow_ray->d, rr->d);
+                                        ////we signal this kind of shadow ray to be depth -1 because we don't want to draw it
+                                        //new_shadow_ray->depth = -1;
+                                        //ray_pool->push(new_shadow_ray);
+                                    }
+
+                                    draw_this = false;
+                                }
+
+                                //if depth depleted on a render ray then just calculate shade
+                                else if (ray->depth == 0 && mesh->material->use_reflectivity) {
+                                    //figure out the nonreflective color contribution of this hit ray (not the subray)
+                                    vec3_mul_float(c, ray->c_cache, shadow_rec.shadow_frac);
+                                    draw_this = true;
+                                }
                             }
                         }
                     }
                 }
-                else vec3_zero(c);
+
+                //if not hit then figure out ray types and make decisions to return color
+                else {
+                    //case when we should draw a ray that's reflected but hit nothing
+                    if (ray->type == ray_type::reflect && ray->depth < max_ray_bounce) {
+                        vec3_mul_float(c, ray->c_cache, shadow_rec.shadow_frac);
+                        draw_this = true;
+                    }
+                }
+
                 free(ray); //delete ray since we no longer needs it
-                color r;
-                vec3_to_color(r, c);
-                cs.push_back(r);
 
-            //**************************************
-            //uncomment this section to do hit test
-            //**************************************
-            //while (ray_pool.size() != 0) {
-            //    vec3 c;
-            //    vec3 yellow = { 1.0f, 1.0f, 0.0f };
-            //    vec3 dark = { 0.1f, 0.1f, 0.1f };
-            //    Ray* ray = ray_pool.pop();
-            //    bool hit = false;
-            //    //get hit
-            //    hitrec rec;
-            //    rec.t = use_cam->far_clip;
-            //    for (int i = 0; i < aabb_tree.meshes.size(); i++) {
-            //        Mesh* mesh = aabb_tree.meshes[i];
-            //        hitrec newrec;
-            //        if (mesh->hit(*ray, use_cam->near_clip, use_cam->far_clip, newrec)) {
-            //            hit = true;
-            //            if ((newrec.t < rec.t)) {
-            //                rec.t = newrec.t;
-            //                strcpy(rec.mesh_id, newrec.mesh_id);
-            //            }
-            //        }
-            //    }
+                if (draw_this) {
+                    color r;
+                    vec3_to_color(r, c);
+                    cs.push_back(r);
+                }
 
-            //    //show collision test result
-            //    if (hit) {
-            //        //determine hit mesh color
-            //        for (int i = 0; i < aabb_tree.meshes.size(); i++) {
-            //            Mesh* mesh = aabb_tree.meshes[i];
-            //            if (!strcmp(mesh->id, rec.mesh_id)) {
-            //                float ratio = (i + 1.0f) / aabb_tree.meshes.size();
-            //                vec3 frac = { ratio, ratio * ratio, 1.0f };
-            //                vec3_fraction(yellow, yellow, frac);
-            //                break;
-            //            }
-            //        }
-            //        vec3_deep_copy(c, yellow);
-            //    }
-            //    else vec3_deep_copy(c, dark);
-                //color r;
-                //vec3_to_color(r, c);
-                //cs.push_back(r);
+                //**************************************
+                //uncomment this section to do hit test
+                //**************************************
+                //while (ray_pool->size() != 0) {
+                //    vec3 c;
+                //    vec3 yellow = { 1.0f, 1.0f, 0.0f };
+                //    vec3 dark = { 0.1f, 0.1f, 0.1f };
+                //    Ray* ray = ray_pool->pop();
+                //    bool hit = false;
+                //    //get hit
+                //    hitrec rec;
+                //    rec.t = use_cam->far_clip;
+                //    for (int i = 0; i < aabb_tree.meshes.size(); i++) {
+                //        Mesh* mesh = aabb_tree.meshes[i];
+                //        hitrec newrec;
+                //        if (mesh->hit(*ray, use_cam->near_clip, use_cam->far_clip, newrec)) {
+                //            hit = true;
+                //            if ((newrec.t < rec.t)) {
+                //                rec.t = newrec.t;
+                //                strcpy(rec.mesh_id, newrec.mesh_id);
+                //            }
+                //        }
+                //    }
+
+                //    //show collision test result
+                //    if (hit) {
+                //        //determine hit mesh color
+                //        for (int i = 0; i < aabb_tree.meshes.size(); i++) {
+                //            Mesh* mesh = aabb_tree.meshes[i];
+                //            if (!strcmp(mesh->id, rec.mesh_id)) {
+                //                float ratio = (i + 1.0f) / aabb_tree.meshes.size();
+                //                vec3 frac = { ratio, ratio * ratio, 1.0f };
+                //                vec3_fraction(yellow, yellow, frac);
+                //                break;
+                //            }
+                //        }
+                //        vec3_deep_copy(c, yellow);
+                //    }
+                //    else vec3_deep_copy(c, dark);
+                //    color r;
+                //    vec3_to_color(r, c);
+                //    cs.push_back(r);
             }
 
             rasterizer->setColor(i, j, cs);
         }
     }
+    delete ray_pool;
 }

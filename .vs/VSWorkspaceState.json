@@ -1,9 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\assimp-5.0.1",
     "\\src"
   ],
-  "SelectedNode": "\\src\\geometry.cpp",
+  "SelectedNode": "\\src\\rasterizer.cpp",
   "PreviewInSolutionExplorer": false
 }

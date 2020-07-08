@@ -30,6 +30,8 @@ class RayPool {
 	public:
 		//constructors
 		RayPool(const unsigned int page_size);
+		//destructor
+		~RayPool();
 		//method to push a ray to the pool
 		void push(Ray * r);
 		//method to pop out a ray and destroy the node

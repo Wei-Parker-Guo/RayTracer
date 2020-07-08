@@ -9,6 +9,14 @@ RayPool::RayPool(const unsigned int page_size) {
 	this->new_page(NULL);
 }
 
+//destructor
+RayPool::~RayPool() {
+	//free the allocated last page
+	free(this->last_page->node);
+	free(this->last_page->prev);
+	free(this->last_page);
+}
+
 //method to create a new blank page and link it to the pool, given pointer to its prev
 void RayPool::new_page(RayPage* prev) {
 	RayPage* new_page = (RayPage *) malloc(sizeof(RayPage));
@@ -25,7 +33,7 @@ void RayPool::push(Ray* r) {
 	if (this->last_page->size == this->page_size) this->new_page(this->last_page);
 
 	//create and add the ray node now
-	RayNode* new_node = (RayNode *) malloc(sizeof(RayNode));
+	RayNode* new_node = (RayNode*)malloc(sizeof(RayNode));
 	new_node->ray = r;
 	new_node->next = this->last_page->node;
 	this->last_page->node = new_node;
@@ -37,7 +45,7 @@ void RayPool::push(Ray* r) {
 Ray* RayPool::pop() {
 
 	//determine if we reached the state of an empty last page, if so delete the page and access prev page
-	if (this->last_page->node == NULL) {
+ 	if (this->last_page->node == NULL) {
 		//if we have no more prev pages, just return
 		if (this->last_page->prev == NULL) {
 			printf("\nStack Underflow\n");
@@ -56,6 +64,7 @@ Ray* RayPool::pop() {
 	this->last_page->node = n->next;
 	//free the node itself
 	free(n);
+	this->last_page->size -= 1;
 	this->total_size -= 1;
 	return r;
 }
@@ -63,3 +72,4 @@ Ray* RayPool::pop() {
 int RayPool::size() {
 	return this->total_size;
 }
+

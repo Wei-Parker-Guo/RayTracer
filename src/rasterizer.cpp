@@ -91,7 +91,7 @@ void Rasterizer::setColor(const int x, const int y, const colorseq& cseq) {
 	vec3_zero(c);
 	for (int i = 0; i < cseq.size(); i++) {
 		vec3 c_n;
-		color_to_vec3(c_n, cseq[i]);
+		color_to_vec3(c_n, cseq.at(i));
 		vec3_add(c, c, c_n);
 	}
 	vec3_scale(c, c, 1.0f / (float) cseq.size());

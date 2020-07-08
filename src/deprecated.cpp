@@ -1,6 +1,6 @@
 //this file contains deprecated code that might be of interest to some
-//comments on each structure/function will be self-explaining
-//this file won't, and shouldn't be compiled for the project
+//comments on each structure/function/code block will be self-explaining
+//this file won't, and shouldn't be compiled for the project, use at your own risk
 
 
 //*************************************
@@ -16,6 +16,33 @@ BVHNode* create_left_n_right(std::vector<BVHNode*>& surfaces, int AXIS, int dept
 //**************************************
 // IMPLEMENTATION
 //**************************************
+
+//old test block to run tests for the ray memory allocator
+//logprintf("Allocator test: Creating and allocating 10000 rays with page size of 64 rays.\n");
+//RayPool ray_pool = RayPool(64);
+//for (int i = 0; i < 10000; i++) {
+//    Ray* new_r = (Ray*)malloc(sizeof(Ray));
+//    new_r->depth = i;
+//    ray_pool.push(new_r);
+//}
+//logprintf("Destroying all of them.\n");
+//for (int i = 0; i < 10000; i++) {
+//    Ray* r = ray_pool.pop();
+//    logprintf("%d", r->depth);
+//    free(r);
+//}
+
+//old function to import lights' direction from scene
+//apply global trans
+//aiMatrix4x4 gtrans;
+//retrieve_node_gtrans(gtrans, scene, light->mName.C_Str());
+//light->mPosition = gtrans * light->mPosition;
+//light->mDirection = aiVector3D(0, 0, -1); //reset the local direction because it doesn't comply with maya
+//aiQuaternion rot;
+//aiVector3D pos;
+//gtrans.DecomposeNoScaling(rot, pos);
+//light->mDirection = rot.Rotate(light->mDirection) * -1.0f;
+//store
 
 BVHNode* create_left_n_right_n(std::vector<BVHNode*>& surfaces) {
 	BVHNode* result = new BVHNode();

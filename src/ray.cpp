@@ -35,14 +35,13 @@ void Ray::get_point(const float t, vec3 p) const {
 }
 
 void Ray::reflect(const vec3 norm, const float t, const float epsilon, Ray& ray) {
-    vec3 origin;
-
-    //figure out the original p and apply epsilon to find the new origin
-    this->get_point(t - epsilon, origin);
-    vec3_deep_copy(ray.e, origin);
-
     //figure out reflect direction
     vec3_reflect(ray.d, this->d, norm);
+
+    //figure out the original p and apply epsilon to find the new origin
+    vec3 origin;
+    this->get_point(t, origin);
+    vec3_deep_copy(ray.e, origin);
 }
 
 void Ray::split(std::vector<Ray*> out_rays, const int n, const float epsilon) {
@@ -58,7 +57,5 @@ void Ray::split(std::vector<Ray*> out_rays, const int n, const float epsilon) {
         //stack the rest of the info
         vec3_deep_copy(ray->e, this->e);
         ray->id = this->id;
-        ray->depth = this->depth - 1; //since its a split and forward we decrease the depth
     }
-    out_rays.push_back(this);
 }

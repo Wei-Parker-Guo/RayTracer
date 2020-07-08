@@ -13,6 +13,11 @@ struct shadow_ray_rec {
 	float shadow_frac;
 };
 
+struct render_ray_rec {
+	int ray_id;
+	vec3 c;
+};
+
 //function to determine the hit rec of a ray
 bool get_hit(const AABBTree& aabb_tree, const Ray* ray, const float t0, const float t1, hitrec& rec);
 

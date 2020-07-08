@@ -296,7 +296,6 @@ bool load_scene(const string& dir) {
         aiProcess_GenSmoothNormals | //smooth the normals
         aiProcess_CalcTangentSpace |
         aiProcess_JoinIdenticalVertices |
-        aiProcess_GenBoundingBoxes |
         aiProcess_GenUVCoords |
         aiProcess_SortByPType);
 
@@ -320,15 +319,19 @@ bool load_scene(const string& dir) {
         retrieve_node_gtrans(gtrans, scene, mesh->mName.C_Str());
         for (int j = 0; j < mesh->mNumVertices; j++) {
             mesh->mVertices[j] = gtrans * mesh->mVertices[j];
+            //mesh->mNormals[j] = gtrans * mesh->mNormals[j];
+            //mesh->mNormals[j].Normalize();
         }
-        mesh->mAABB.mMin = gtrans * mesh->mAABB.mMin;
-        mesh->mAABB.mMax = gtrans * mesh->mAABB.mMax;
         //get this meshes material
         aiMaterial* aimesh_mat = scene->mMaterials[mesh->mMaterialIndex];
         Material* mesh_mat;
         if (strstr(aimesh_mat->GetName().C_Str(), "lambert") != NULL) {
             mesh_mat = new LambertMat(aimesh_mat);
             logprintf("Associated this mesh with lambert material: %s\n", aimesh_mat->GetName().C_Str());
+        }
+        else if (strstr(aimesh_mat->GetName().C_Str(), "phong") != NULL) {
+            mesh_mat = new PhongMat(aimesh_mat);
+            logprintf("Associated this mesh with phong material: %s\n", aimesh_mat->GetName().C_Str());
         }
         //store
         Mesh* new_mesh = new Mesh(mesh, mesh_mat);
@@ -350,16 +353,6 @@ bool load_scene(const string& dir) {
         aiLight* light = cam_scene->mLights[i];
         //reverse light direction for rendering purpose
         light->mDirection *= -1.0f;
-        //apply global trans
-        //aiMatrix4x4 gtrans;
-        //retrieve_node_gtrans(gtrans, scene, light->mName.C_Str());
-        //light->mPosition = gtrans * light->mPosition;
-        //light->mDirection = aiVector3D(0, 0, -1); //reset the local direction because it doesn't comply with maya
-        //aiQuaternion rot;
-        //aiVector3D pos;
-        //gtrans.DecomposeNoScaling(rot, pos);
-        //light->mDirection = rot.Rotate(light->mDirection) * -1.0f;
-        //store
         Light* new_light;
         if (light->mType == aiLightSourceType::aiLightSource_DIRECTIONAL) new_light = new DirectLight(light); //directional light
         lights.push_back(new_light);
@@ -432,21 +425,6 @@ void display(GLFWwindow* window)
 void renderFrame(GLFWwindow* window) {
     if (rendering) return;
     rendering = true;
-
-    //uncomment to run tests for the ray memory allocator
-    //logprintf("Allocator test: Creating and allocating 10000 rays with page size of 64 rays.\n");
-    //RayPool ray_pool = RayPool(64);
-    //for (int i = 0; i < 10000; i++) {
-    //    Ray* new_r = (Ray*)malloc(sizeof(Ray));
-    //    new_r->depth = i;
-    //    ray_pool.push(new_r);
-    //}
-    //logprintf("Destroying all of them.\n");
-    //for (int i = 0; i < 10000; i++) {
-    //    Ray* r = ray_pool.pop();
-    //    logprintf("%d", r->depth);
-    //    free(r);
-    //}
 
     //start the logger for render time
     auto time_start = std::chrono::high_resolution_clock::now();

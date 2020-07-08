@@ -328,8 +328,15 @@ Mesh::Mesh(const aiMesh* mesh, Material* mat) {
         aiFace* face = &(mesh->mFaces[i]);
         this->faces.push_back(face);
     }
-    aivec_to_vec3(this->aabb[0], mesh->mAABB.mMin);
-    aivec_to_vec3(this->aabb[1], mesh->mAABB.mMax);
+    //generate bounding box, we do it here not bounding box call to save calculation
+    vec3_deep_copy(this->aabb[0], this->vertices[0]->pos);
+    vec3_deep_copy(this->aabb[1], this->vertices[0]->pos);
+    for (int i = 0; i < this->vertices.size(); i++) {
+        box comp;
+        vec3_deep_copy(comp[0], this->vertices[i]->pos);
+        vec3_deep_copy(comp[1], this->vertices[i]->pos);
+        combine_aabb(this->aabb, comp, this->aabb);
+    }
     this->construct_unit_surfaces();
 }
 

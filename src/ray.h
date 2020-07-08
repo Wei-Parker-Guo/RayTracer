@@ -21,6 +21,13 @@ class Ray {
         float t;
         int depth;
 
+        //a color cache to store the returned color
+        vec3 c_cache;
+        //a shadow cache to store the shadow contrib
+        float sh_cache;
+        //a contribution percentage for this ray's hit color return
+        float contrib;
+
         //default constructor to create a zeroed out ray
         Ray();
 

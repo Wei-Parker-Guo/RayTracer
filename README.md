@@ -33,6 +33,23 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 	Resolution: 1920 X 1080<br/>
 </p>
 
+3. Render result of the default standford bunny scene with rabbit as lambert material and other objects as phong reflective:
+
+<p align="center">
+  <img src="docs&images/render_result_standford_rabbit_lambert_softshadow_softreflection.jpg">
+</p>
+
+<p align="center">
+	CPU Thread Number: 9<br/>
+	Samples per pixel: 4<br/>
+	Samples per ray: 4<br/>
+	Epsilon: 0.001000<br/>
+	Ray Jitter Epsilon: 0.100000<br/>
+	Max bounces: 2<br/>
+	Field of view: 60.00<br/>
+	Resolution: 1920 X 1080<br/>
+</p>
+
 # Dummy Program Logic Flow
 
 <p align="center">
