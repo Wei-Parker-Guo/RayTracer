@@ -27,6 +27,8 @@ class Ray {
         float sh_cache;
         //a contribution percentage for this ray's hit color return
         float contrib;
+        //a contribution percentage for previous total contrib (used if we hit a nonreflective so we can know the ray's return color contrib)
+        float total_previous_contrib;
 
         //default constructor to create a zeroed out ray
         Ray();

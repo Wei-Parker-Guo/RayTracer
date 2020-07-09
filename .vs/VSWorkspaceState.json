@@ -1,8 +1,9 @@
 {
   "ExpandedNodes": [
     "",
+    "\\assimp-5.0.1\\tools\\assimp_view",
     "\\src"
   ],
-  "SelectedNode": "\\src\\rasterizer.cpp",
+  "SelectedNode": "\\README.md",
   "PreviewInSolutionExplorer": false
 }

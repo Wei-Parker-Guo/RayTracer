@@ -115,6 +115,8 @@ class Mesh : public Surface {
         Mesh(const aiMesh* mesh, Material* mat);
         void construct_unit_surfaces(); //construct the unit surfaces from scratch with vertex and faces given
         bool hit(const Ray& r, const float t0, const float t1, hitrec& rec) override;
+        //method to only check and return hitpoint on this mesh's aabb box for acceleration purpose
+        float aabb_hit(const Ray& r);
 
         void bounding_box(box& b) override;
 };

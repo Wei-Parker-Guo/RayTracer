@@ -372,6 +372,20 @@ bool Mesh::hit(const Ray& r, const float t0, const float t1, hitrec& rec) {
     //return false;
 }
 
+float Mesh::aabb_hit(const Ray& r) {
+    float t[9];
+    t[1] = (this->aabb[0][0] - r.e[0]) / r.d[0];
+    t[2] = (this->aabb[1][0] - r.e[0]) / r.d[0];
+    t[3] = (this->aabb[0][1] - r.e[1]) / r.d[1];
+    t[4] = (this->aabb[1][1] - r.e[1]) / r.d[1];
+    t[5] = (this->aabb[0][2] - r.e[2]) / r.d[2];
+    t[6] = (this->aabb[1][2] - r.e[2]) / r.d[2];
+    t[7] = fmax(fmax(fmin(t[1], t[2]), fmin(t[3], t[4])), fmin(t[5], t[6]));
+    t[8] = fmin(fmin(fmax(t[1], t[2]), fmax(t[3], t[4])), fmax(t[5], t[6]));
+    bool result = (t[8] < 0 || t[7] > t[8]) ? -1 : t[7];
+    return t[7];
+}
+
 void Mesh::bounding_box(box& b) {
     vec3_deep_copy(b[0], this->aabb[0]);
     vec3_deep_copy(b[1], this->aabb[1]);

@@ -47,9 +47,9 @@ void Ray::reflect(const vec3 norm, const float t, const float epsilon, Ray& ray)
 void Ray::split(std::vector<Ray*> out_rays, const int n, const float epsilon) {
     for (Ray* ray : out_rays) {
         //jitter amounts
-        float jitter_x = epsilon * (rand() % 200 / 200.0f - 1.0f);
-        float jitter_y = epsilon * (rand() % 200 / 200.0f - 1.0f);
-        float jitter_z = epsilon * (rand() % 200 / 200.0f - 1.0f);
+        float jitter_x = epsilon * (rand() % 200 / 100.0f - 1.0f);
+        float jitter_y = epsilon * (rand() % 200 / 100.0f - 1.0f);
+        float jitter_z = epsilon * (rand() % 200 / 100.0f - 1.0f);
         //apply
         vec3 add_amount = { jitter_x, jitter_y, jitter_z };
         vec3_add(ray->d, this->d, add_amount);

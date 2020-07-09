@@ -49,6 +49,9 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
             //a new color sequence for each pixel
             colorseq cs;
 
+            //**************************
+            //RAY POOL INITIALIZATION
+            //**************************
             //loop over to generate sample rays on a pixel
             for (int x = 0; x < samples_per_pixel; x++) {
                 for (int y = 0; y < samples_per_pixel; y++) {
@@ -82,6 +85,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                     vec3_deep_copy(new_render_ray->d, ray_dir);
                     new_render_ray->depth = max_ray_bounce;
                     new_render_ray->contrib = 1;
+                    new_render_ray->total_previous_contrib = 0;
                     vec3_zero(new_render_ray->c_cache);
                     //add to pool
                     ray_pool->push(new_render_ray);
@@ -101,9 +105,9 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                 }
             }
 
-            //**************************************
-            //Calculation of the ray return color
-            //**************************************
+            //*********************************************
+            //SUBRAY GENERATION & RETURN COLOR CALCULATION
+            //*********************************************
 
             shadow_ray_rec shadow_rec;
             shadow_rec.shadow_frac = 0;
@@ -119,6 +123,10 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                 float total_sh_frac = 0; //result
                 bool draw_this = false; //boolean to determine if we draw this or continue to split
                 if (hit) {
+
+                    //************
+                    //SHADOW RAY
+                    //************
                     //determine shadow color if it's a shadow ray
                     if (ray->type == ray_type::shadow) {
                         for (Light* light : lights) {
@@ -158,6 +166,9 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                         draw_this = false;
                     }
 
+                    //*********************
+                    //RENDER RAY (SHADING)
+                    //*********************
                     //determine mesh shade if it's a reflect ray
                     else {
                         for (Mesh* mesh : aabb_tree.meshes) {
@@ -166,6 +177,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                 //hitpoint
                                 vec3 p;
                                 ray->get_point(rec.t, p);
+
                                 //don't generate subrays for reflectivity if the material doesn't need it
                                 //it's not necessay to explicitly break the loop here, it will not elongate the loop so we will jump to next subpixel's shadow ray
                                 if (!mesh->material->use_reflectivity) {
@@ -173,7 +185,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                     mesh->material->apply_shade(contrib, p, use_cam->pos, rec.norm, lights);
                                     //if the ray comes from a reflective ray, we need to apply contribution
                                     if (ray->contrib != 1) {
-                                        vec3_mul_float(contrib, contrib, ray->contrib);
+                                        vec3_mul_float(contrib, contrib, 1 - ray->total_previous_contrib);
                                     }
                                     vec3_add(ray->c_cache, ray->c_cache, contrib);
                                     vec3_mul_float(c, ray->c_cache, shadow_rec.shadow_frac);
@@ -206,6 +218,8 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                     //concatenate with cache
                                     if (ray->depth == max_ray_bounce) vec3_deep_copy(ray->c_cache, c_self_contrib); //base case for the first hit
                                     else vec3_add(ray->c_cache, ray->c_cache, c_self_contrib);
+                                    //record total previous contrib
+                                    ray->total_previous_contrib += ray->contrib;
 
 
                                     //**********************************
@@ -221,6 +235,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                     vec3_deep_copy(rr->c_cache, ray->c_cache);
                                     rr->sh_cache = ray->sh_cache;
                                     rr->contrib = ray->contrib;
+                                    rr->total_previous_contrib = ray->total_previous_contrib;
 
                                     //create a monte carlo subset of this ray
                                     std::vector<Ray*> subrays;
@@ -232,6 +247,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                         vec3_deep_copy(r->c_cache, ray->c_cache);
                                         r->sh_cache = rr->sh_cache;
                                         r->contrib = rr->contrib;
+                                        r->total_previous_contrib = rr->total_previous_contrib;
                                         subrays.push_back(r);
                                     }
 
@@ -256,7 +272,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                     draw_this = false;
                                 }
 
-                                //if depth depleted on a render ray then just calculate shade
+                                //if depth depleted on a render ray then just calculate shade (base case)
                                 else if (ray->depth == 0 && mesh->material->use_reflectivity) {
                                     //figure out the nonreflective color contribution of this hit ray (not the subray)
                                     vec3_mul_float(c, ray->c_cache, shadow_rec.shadow_frac);
@@ -267,7 +283,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                     }
                 }
 
-                //if not hit then figure out ray types and make decisions to return color
+                //if not hit then figure out ray types and make decisions to return color (base case)
                 else {
                     //case when we should draw a ray that's reflected but hit nothing
                     if (ray->type == ray_type::reflect && ray->depth < max_ray_bounce) {
