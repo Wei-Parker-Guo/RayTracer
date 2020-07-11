@@ -309,10 +309,6 @@ bool load_scene(const string& dir) {
     //*******************************
     // LOADING STUFF GOES BELOW
     //*******************************
-    
-    //get view object transform matrix for normals
-    aiMatrix4x4 view_mat;
-    scene->mCameras[0]->GetCameraMatrix(view_mat);
 
     //load meshes and create geometry classes from them
     logprintf("\nDetected Meshes:\n\n");
