@@ -309,6 +309,10 @@ bool load_scene(const string& dir) {
     //*******************************
     // LOADING STUFF GOES BELOW
     //*******************************
+    
+    //get view object transform matrix for normals
+    aiMatrix4x4 view_mat;
+    scene->mCameras[0]->GetCameraMatrix(view_mat);
 
     //load meshes and create geometry classes from them
     logprintf("\nDetected Meshes:\n\n");
@@ -316,11 +320,15 @@ bool load_scene(const string& dir) {
         aiMesh* mesh = scene->mMeshes[i];
         //apply global trans
         aiMatrix4x4 gtrans;
+        aiMatrix4x4 gtrans2;
         retrieve_node_gtrans(gtrans, scene, mesh->mName.C_Str());
+        retrieve_node_gtrans(gtrans2, scene, mesh->mName.C_Str());
+        gtrans2.Inverse().Transpose();
+        //get the rotation/scaling part only
         for (int j = 0; j < mesh->mNumVertices; j++) {
             mesh->mVertices[j] = gtrans * mesh->mVertices[j];
-            //mesh->mNormals[j] = gtrans * mesh->mNormals[j];
-            //mesh->mNormals[j].Normalize();
+            mesh->mNormals[j] =  gtrans2 * mesh->mNormals[j];
+            mesh->mNormals[j].Normalize();
         }
         //get this meshes material
         aiMaterial* aimesh_mat = scene->mMaterials[mesh->mMaterialIndex];

@@ -1,9 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\assimp-5.0.1\\tools\\assimp_view",
     "\\src"
   ],
-  "SelectedNode": "\\README.md",
+  "SelectedNode": "\\src\\ray.cpp",
   "PreviewInSolutionExplorer": false
 }
