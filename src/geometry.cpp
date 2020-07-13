@@ -98,8 +98,10 @@ BVHNode::BVHNode(std::vector<Surface*> surfaces, int AXIS, int depth) {
         //parition the surface list
         std::vector<Surface*> left_list;
         std::vector<Surface*> right_list;
+        int div_dif = INFINITY;
+        int best_axis = 0;
         //try to find the best midpoint that will divide the list evenly
-        for (int a = 0; a < 2; a++) {
+        for (int a = 0; a < 3; a++) {
             left_list.clear();
             right_list.clear();
             for (int i = 0; i < surfaces.size(); i++) {
@@ -109,24 +111,37 @@ BVHNode::BVHNode(std::vector<Surface*> surfaces, int AXIS, int depth) {
                 if (bm < m) left_list.push_back(surfaces[i]);
                 else right_list.push_back(surfaces[i]);
             }
-            //reached imperfect divison
-            if (left_list.size() == 0 || right_list.size() == 0) {
-                AXIS = (AXIS + 1) % 3;
+            int this_div_dif = abs((int)left_list.size() - (int)right_list.size()); //figure out the evenness
+            //reached a more desirable divison
+            if (this_div_dif < div_dif) {
+                div_dif = this_div_dif;
+                best_axis = AXIS;
             }
-            else break;
+            AXIS = (AXIS + 1) % 3;
+        }
+        AXIS = best_axis;
+        //confirm axis and do partition
+        left_list.clear();
+        right_list.clear();
+        for (int i = 0; i < surfaces.size(); i++) {
+            box b;
+            surfaces[i]->bounding_box(b);
+            float bm = b[0][AXIS] + (b[1][AXIS] - b[0][AXIS]) / 2;
+            if (bm < m) left_list.push_back(surfaces[i]);
+            else right_list.push_back(surfaces[i]);
         }
         //construct children and link them to parent
         //if any list has zero length then just assign NULL to children it points to
         if (left_list.size() == 0) {
             this->left = NULL;
-            this->right = new TriangleSet(surfaces);
+            this->right = new TriangleSet(right_list);
             this->right->bounding_box(this->bbox);
             return;
         }
         else this->left = new BVHNode(left_list, (AXIS + 1) % 3, depth - 1);
         if (right_list.size() == 0) {
             this->right = NULL;
-            this->left = new TriangleSet(surfaces);
+            this->left = new TriangleSet(left_list);
             this->left->bounding_box(this->bbox);
             return;
         }
