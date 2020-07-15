@@ -40,7 +40,6 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 </p>
 
 <p align="center">
-	CPU Thread Number: 9<br/>
 	Samples per pixel: 4<br/>
 	Samples per ray: 4<br/>
 	Epsilon: 0.001000<br/>
@@ -48,6 +47,22 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 	Max bounces: 2<br/>
 	Field of view: 60.00<br/>
 	Resolution: 1920 X 1080<br/>
+</p>
+
+4. Render result of the a bunch of spheres in a mirrored room:
+
+<p align="center">
+  <img src="docs&images/render_result_mirror_sphere_room.jpg">
+</p>
+
+<p align="center">
+	Samples per pixel: 4<br/>
+	Samples per ray: 4<br/>
+	Epsilon: 0.001000<br/>
+	Ray Jitter Epsilon: 0.010000<br/>
+	Max bounces: 3<br/>
+	Field of view: 60.00<br/>
+	Resolution: 1827 X 1077<br/>
 </p>
 
 # Dummy Program Logic Flow

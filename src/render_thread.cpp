@@ -110,7 +110,6 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
             //*********************************************
 
             shadow_ray_rec shadow_rec;
-            shadow_rec.shadow_frac = 0;
 
             while (ray_pool->size() != 0) {
                 Ray* ray = ray_pool->pop();
@@ -120,7 +119,6 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                 //handle the info and calculate color
                 vec3 c;
                 vec3_zero(c);
-                float total_sh_frac = 0; //result
                 bool draw_this = false; //boolean to determine if we draw this or continue to split
                 if (hit) {
 
@@ -129,6 +127,8 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                     //************
                     //determine shadow color if it's a shadow ray
                     if (ray->type == ray_type::shadow) {
+                        //clean record list first
+                        shadow_rec.shadow_frac.clear();
                         for (Light* light : lights) {
                             float sh_frac = 0;
                             //get hit position
@@ -156,12 +156,11 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                             }
                             //average sampling result
                             sh_frac /= loi_rays.size();
-                            total_sh_frac += sh_frac;
+                            //record into shadow record
+                            shadow_rec.shadow_frac.push_back(sh_frac);
                             loi_rays.clear();
                         }
-                        //average light_result
-                        total_sh_frac /= lights.size();
-                        shadow_rec.shadow_frac = total_sh_frac;
+                        //record ray id into shadow record
                         shadow_rec.ray_id = ray->id;
                         draw_this = false;
                     }
@@ -182,13 +181,13 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                 //it's not necessay to explicitly break the loop here, it will not elongate the loop so we will jump to next subpixel's shadow ray
                                 if (!mesh->material->use_reflectivity) {
                                     vec3 contrib;
-                                    mesh->material->apply_shade(contrib, p, use_cam->pos, rec.norm, lights);
+                                    mesh->material->apply_shade(contrib, p, use_cam->pos, rec.norm, lights, shadow_rec);
                                     //if the ray comes from a reflective ray, we need to apply contribution
                                     if (ray->contrib != 1) {
                                         vec3_mul_float(contrib, contrib, 1 - ray->total_previous_contrib);
                                     }
                                     vec3_add(ray->c_cache, ray->c_cache, contrib);
-                                    vec3_mul_float(c, ray->c_cache, shadow_rec.shadow_frac);
+                                    vec3_deep_copy(c, ray->c_cache);
                                     draw_this = true;
                                 }
 
@@ -209,8 +208,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                         prev_contrib = prev_contrib - ray->contrib;
                                     }
                                     //figure out shadow contrib
-                                    ray->sh_cache = shadow_rec.shadow_frac; //base case
-                                    mesh->material->apply_shade(c_self_contrib, p, use_cam->pos, rec.norm, lights);
+                                    mesh->material->apply_shade(c_self_contrib, p, use_cam->pos, rec.norm, lights, shadow_rec);
                                     //apply self contrib factor
                                     vec3_mul_float(c_self_contrib, c_self_contrib, ray->contrib);
                                     //apply shadow factor
@@ -258,15 +256,15 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                     //store into ray pool, this will elongate the ray processing loop until we get to bottom depth
                                     for (Ray* subray : subrays) {
                                         ray_pool->push(subray);
-                                        ////we create and store one more shadow ray here to calculate the subray's shadow factor on the run
-                                        //Ray* new_shadow_ray = (Ray*)malloc(sizeof(Ray));
-                                        //new_shadow_ray->id = ray_id;
-                                        //new_shadow_ray->type = ray_type::shadow;
-                                        //vec3_deep_copy(new_shadow_ray->e, rr->e);
-                                        //vec3_deep_copy(new_shadow_ray->d, rr->d);
-                                        ////we signal this kind of shadow ray to be depth -1 because we don't want to draw it
-                                        //new_shadow_ray->depth = -1;
-                                        //ray_pool->push(new_shadow_ray);
+                                        //we create and store one more shadow ray here to calculate the subray's shadow factor on the run
+                                        Ray* new_shadow_ray = (Ray*)malloc(sizeof(Ray));
+                                        new_shadow_ray->id = ray_id;
+                                        new_shadow_ray->type = ray_type::shadow;
+                                        vec3_deep_copy(new_shadow_ray->e, rr->e);
+                                        vec3_deep_copy(new_shadow_ray->d, rr->d);
+                                        //we signal this kind of shadow ray to be depth -1 because we don't want to draw it
+                                        new_shadow_ray->depth = -1;
+                                        ray_pool->push(new_shadow_ray);
                                     }
 
                                     draw_this = false;
@@ -275,7 +273,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                 //if depth depleted on a render ray then just calculate shade (base case)
                                 else if (ray->depth == 0 && mesh->material->use_reflectivity) {
                                     //figure out the nonreflective color contribution of this hit ray (not the subray)
-                                    vec3_mul_float(c, ray->c_cache, shadow_rec.shadow_frac);
+                                    vec3_deep_copy(c, ray->c_cache);
                                     draw_this = true;
                                 }
                             }
@@ -287,7 +285,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                 else {
                     //case when we should draw a ray that's reflected but hit nothing
                     if (ray->type == ray_type::reflect && ray->depth < max_ray_bounce) {
-                        vec3_mul_float(c, ray->c_cache, shadow_rec.shadow_frac);
+                        vec3_deep_copy(c, ray->c_cache);
                         draw_this = true;
                     }
                 }

@@ -1,7 +1,7 @@
 #include "materials.h"
 #include "shaders/basic_shaders.h"
 
-void Material::apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights) {
+void Material::apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights, shadow_ray_rec& sh_rec) {
 	//if we reached this virtual class method then it means no material at all, show an entirely yellow block
 	vec3 yellow = { 1.0f, 1.0f, 0.0f };
 	vec3_deep_copy(r, yellow);
@@ -25,17 +25,19 @@ LambertMat::LambertMat(const vec3 base_color, const vec3 ambient_color) {
 	vec3_deep_copy(this->ambient_c, ambient_color);
 }
 
-void LambertMat::apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights) {
+void LambertMat::apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights, shadow_ray_rec& sh_rec) {
 	//zero the result
 	vec3_zero(r);
 	//get light info
 	vec3 lc;
 	vec3 l;
-	for (Light* light : lights) {
+	for (int i = 0; i < lights.size(); i++) {
+		Light* light = lights[i];
 		vec3 c_add;
 		vec3_zero(c_add);
 		light->get_dir_c(l, lc, p);
 		gen_lambert_shade(this->ambient_c, this->base_c, lc, norm, l, c_add);
+		vec3_mul_float(c_add, c_add, sh_rec.shadow_frac[i]);
 		vec3_add(r, r, c_add);
 	}
 }
@@ -62,7 +64,7 @@ PhongMat::PhongMat(aiMaterial* mat) {
 	this->use_reflectivity = true;
 }
 
-void PhongMat::apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights) {
+void PhongMat::apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights, shadow_ray_rec& sh_rec) {
 	//zero the result
 	vec3_zero(r);
 	//figure out viewing vector
@@ -72,12 +74,14 @@ void PhongMat::apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, 
 	//get light info
 	vec3 lc;
 	vec3 l;
-	for (Light* light : lights) {
+	for (int i = 0; i < lights.size(); i++) {
+		Light* light = lights[i];
 		vec3 c_add;
 		vec3_zero(c_add);
 		light->get_dir_c(l, lc, p);
 		gen_lambert_shade(this->ambient_c, this->base_c, lc, norm, l, c_add);
 		gen_phong_shade(lc, this->spec_c, l, view, norm, this->shininess, c_add);
+		vec3_mul_float(c_add, c_add, sh_rec.shadow_frac[i]);
 		vec3_add(r, r, c_add);
 	}
 }

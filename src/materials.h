@@ -6,6 +6,11 @@
 #include "fast_math.h"
 #include "lights.h"
 
+struct shadow_ray_rec {
+	int ray_id;
+	std::vector<float> shadow_frac;
+};
+
 enum class mat_texture_type {
 	base_color,
 	specular,
@@ -26,7 +31,7 @@ class Material {
 		bool use_reflectivity = false;
 		float reflectivity = 0;
 		//method to apply the shade on an input color to retrieve the shaded one, with lights and triangle info given
-		virtual void apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights);
+		virtual void apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights, shadow_ray_rec& sh_rec);
 };
 
 //a basic lambert material
@@ -41,7 +46,7 @@ class LambertMat : public Material {
 		LambertMat(const vec3 base_color, const vec3 ambient_color);
 
 		//methods
-		void apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights) override;
+		void apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights, shadow_ray_rec& sh_rec) override;
 };
 
 //basic, ansiotropic Phong Material that could also be used to render isotropic materials
@@ -56,7 +61,7 @@ class PhongMat : public Material {
 		PhongMat(aiMaterial* mat);
 
 		//methods
-		void apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights) override;
+		void apply_shade(vec3 r, const vec3 p, const vec3 e, const vec3 norm, std::vector<Light*> lights, shadow_ray_rec& sh_rec) override;
 };
 
 #endif
