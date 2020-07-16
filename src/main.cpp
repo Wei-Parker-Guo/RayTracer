@@ -359,6 +359,7 @@ bool load_scene(const string& dir) {
         light->mDirection *= -1.0f;
         Light* new_light;
         if (light->mType == aiLightSourceType::aiLightSource_DIRECTIONAL) new_light = new DirectLight(light); //directional light
+        else if (light->mType == aiLightSourceType::aiLightSource_POINT) new_light = new PointLight(light);   //point light
         lights.push_back(new_light);
         logprintf("%s\n", light->mName.C_Str());
         logprintf("Position: %.2f %.2f %.2f; Direction: %.2f %.2f %.2f; Color: %.2f %.2f %.2f;\n",

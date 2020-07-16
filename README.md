@@ -14,6 +14,12 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 8. tooljpeg jpeg encoder from https://create.stephan-brumme.com/toojpeg/
 7. Code references are enclosed as inline comments.
 
+# Dummy Program Logic Flow
+
+<p align="center">
+  <img src="docs&images/dummy_logic_flow.jpg">
+</p>
+
 # Render Results
 1. All the logs are recorded in logs.txt in raytracer.exe's directory.
 
@@ -65,10 +71,20 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 	Resolution: 1827 X 1077<br/>
 </p>
 
-# Dummy Program Logic Flow
+5. Render result of the a bunch of three cubes under a point light:
 
 <p align="center">
-  <img src="docs&images/dummy_logic_flow.jpg">
+  <img src="docs&images/render_result_pointlight_cubes.jpg">
+</p>
+
+<p align="center">
+	Samples per pixel: 4<br/>
+	Samples per ray: 4<br/>
+	Epsilon: 0.001000<br/>
+	Ray Jitter Epsilon: 0.100000<br/>
+	Max bounces: 3<br/>
+	Field of view: 54.5<br/>
+	Resolution: 1920 X 1080<br/>
 </p>
 
 # USAGE
