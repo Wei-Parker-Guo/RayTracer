@@ -71,7 +71,7 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 	Resolution: 1827 X 1077<br/>
 </p>
 
-5. Render result of the a bunch of three cubes under a point light:
+5. Render result of three reflective cubes under a point light:
 
 <p align="center">
   <img src="docs&images/render_result_pointlight_cubes.jpg">
@@ -84,6 +84,23 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 	Ray Jitter Epsilon: 0.100000<br/>
 	Max bounces: 3<br/>
 	Field of view: 54.5<br/>
+	Resolution: 1920 X 1080<br/>
+</p>
+
+5. Render result of three glass balls under a point light (the white artifacts are due to full reflectivity set by the material):
+
+<p align="center">
+  <img src="docs&images/render_result_glass_balls.jpg">
+</p>
+
+<p align="center">
+	Samples per pixel: 4<br/>
+	Samples per ray: 5<br/>
+	Epsilon: 0.001000<br/>
+	Ray Jitter Epsilon: 0.100000<br/>
+	Max bounces: 3<br/>
+	Max refractive bounces: 5<br/>
+	Field of view: 54.50<br/>
 	Resolution: 1920 X 1080<br/>
 </p>
 
@@ -210,6 +227,10 @@ This sets the epsilon amount of next ray offset to avoid self-collison. f should
 • **-reps f**
 
 This sets the epsilon amount of splitted ray's offset from the parent ray, higher means softer and more random splits. f should be a fairly small positive float.
+
+• **-rbounce n**
+
+This sets the maximum bounce depth of a refractive ray. n is a positive nonzero integer.
 
 # Additonal Features
 

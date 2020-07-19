@@ -321,12 +321,11 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                     reflect_ray->type = ray_type::refractive;
                                     if (ray->refraci == 1) {
                                         reflect_ray->depth = max_ray_bounce;
-                                        reflect_ray->refraci = 1;
                                     }
                                     else {
                                         reflect_ray->depth = ray->depth - 1;
-                                        reflect_ray->refraci = mesh->material->refractivity;
                                     }
+                                    reflect_ray->refraci = mesh->material->refractivity;
 
                                     //figure out refrac ray
                                     Ray* refrac_ray = (Ray*)malloc(sizeof(Ray));
@@ -336,7 +335,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                     if (ray->refraci == 1) refrac_ray->depth = max_refrac_bounce;
                                     else refrac_ray->depth = ray->depth - 1;
                                     refrac_ray->refraci = mesh->material->refractivity; //cache the refrac ray's refract index
-                                    if (refrac_ray->refraci == ray->refraci) vec3_mul_float(rec.norm, rec.norm, -1); //reverse the norm if we are in the same refrac material for front and back face
+                                    //if (refrac_ray->refraci == ray->refraci) vec3_mul_float(rec.norm, rec.norm, -1); //reverse the norm if we are in the same refrac material for front and back face
 
                                     //figure out reflect ray
                                     ray->reflect(rec.norm, rec.t, *reflect_ray);

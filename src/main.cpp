@@ -453,6 +453,7 @@ void renderFrame(GLFWwindow* window) {
     logprintf("Epsilon: %f\n", epsilon);
     logprintf("Ray Jitter Epsilon: %f\n", ray_eps);
     logprintf("Max bounces: %d\n", max_ray_bounce);
+    logprintf("Max refractive bounces: %d\n", max_refrac_bounce);
     logprintf("Field of view: %.2f\n", set_hfov);
 
     //resize rasterizer if necessary
@@ -624,7 +625,8 @@ enum class token_code {
     set_pixel_blk_size,
     set_samples_per_ray,
     set_epsilon,
-    set_ray_eps
+    set_ray_eps,
+    set_refrac_bounce
 };
 
 token_code get_token_code(string const& token){
@@ -637,6 +639,7 @@ token_code get_token_code(string const& token){
     if (token == "-spr") return token_code::set_samples_per_ray;
     if (token == "-eps") return token_code::set_epsilon;
     if (token == "-reps") return token_code::set_ray_eps;
+    if (token == "-rbounce") return token_code::set_refrac_bounce;
     return token_code::not_specified;
 }
 
@@ -669,6 +672,9 @@ void read_cmd_tokens(const vector<string> tokens){
             break;
         case token_code::set_ray_eps:
             ray_eps = stof(tokens[1]);
+            break;
+        case token_code::set_refrac_bounce:
+            max_refrac_bounce = stoi(tokens[1]);
             break;
         default:
             break;

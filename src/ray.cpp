@@ -66,11 +66,8 @@ float Ray::refrac(const vec3 norm, const float n, const float nt, const float t,
     this->get_point(t, ppos);
     vec3_deep_copy(ray.e, ppos);
 
-    //figure out fresnel term first, if result is negative then shortcircuit this function (total internal reflection)
-    float r0 = sqr((nt - 1) / (nt + 1));
-    float r_theta = r0 + (1 - r0) * fast_pow(1 - vec3_mul_inner(this->d, norm), 5);
-    if (r_theta < 0) return r_theta; //total internal reflection
-
+    float c;
+    vec3 tvec;
     //figure out direction (normalized)
     vec3 term1;
     vec3 term2;
@@ -81,7 +78,19 @@ float Ray::refrac(const vec3 norm, const float n, const float nt, const float t,
     //second term
     vec3_mul_float(term2, norm, sqrt(1 - sqr(n / nt) * (1 - sqr(vec3_mul_inner(d, norm)))));
     //cascade into return dir and normalize
-    vec3_sub(ray.d, term1, term2);
-    vec3_norm(ray.d, ray.d);
+    vec3_sub(tvec, term1, term2);
+    if (vec3_mul_inner(this->d, norm) < 0) {
+        c = -(vec3_mul_inner(this->d, norm));
+    }
+    else {
+        c = vec3_mul_inner(tvec, norm);
+    }
+
+    //figure out fresnel term first, if result is negative then shortcircuit this function (total internal reflection)
+    float r0 = sqr((nt - 1) / (nt + 1));
+    float r_theta = r0 + (1 - r0) * fast_pow(1 - c, 5);
+    if (r_theta < 0) return r_theta; //total internal reflection
+
+    vec3_norm(ray.d, tvec);
     return r_theta;
 }
