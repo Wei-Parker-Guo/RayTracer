@@ -39,7 +39,7 @@ class Rasterizer {
 		//mutators
 		void resize(const float width, const float height); //this resizes the buf, will reduce/add empty black pixels as needed
 		//utility methods
-		void setColor(const int x, const int y, const colorseq& cseq); //this accepts a color sequence of n vec3 colors, average the result and set into the specified pixel
+		void setColor(const int x, const int y, const colorseq& cseq, const vec3 weight_sum); //this accepts a color sequence of n vec3 colors, average the result and set into the specified pixel
 };
 
 

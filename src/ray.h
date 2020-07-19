@@ -9,7 +9,8 @@
 
 enum class ray_type {
     shadow,
-    reflect
+    reflect,
+    refractive
 };
 
 class Ray {
@@ -29,6 +30,10 @@ class Ray {
         float contrib;
         //a contribution percentage for previous total contrib (used if we hit a nonreflective so we can know the ray's return color contrib)
         float total_previous_contrib;
+        //a refractive index logger for this ray's refrative index
+        float refraci;
+        //a weight term to group up ray results later
+        float weight;
 
         //default constructor to create a zeroed out ray
         Ray();
@@ -41,10 +46,13 @@ class Ray {
         void get_point(const float t, vec3 p) const;
 
         //this method reflect the ray around normal at a given t and epsilon, returning the new ray generated
-        void reflect(const vec3 norm, const float t, const float epsilon, Ray& ray);
+        void reflect(const vec3 norm, const float t, Ray& ray);
 
         //this method splits the ray into a list of subrays by monte carlo method, bounded by an epsilon range
         void split(std::vector<Ray*> out_rays, const int n, const float epsilon);
+
+        //this method refract the ray into a new direction, returning the new ray generated and the Schlick approximation of the fresnel term
+        float refrac(const vec3 norm, const float n, const float nt, const float t, Ray& ray);
 };
 
 #endif

@@ -24,7 +24,8 @@ bool get_hit(const AABBTree& aabb_tree, const Ray* ray, const float t0, const fl
 
 void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camera* use_cam, std::vector<Light*> lights,
     const int startX, const int startY, const int endX, const int endY,
-    const int ray_pool_page_size, const float set_hfov, const int samples_per_pixel, const int samples_per_ray, const int max_ray_bounce, const float epsilon, const float ray_eps) {
+    const int ray_pool_page_size, const float set_hfov, const int samples_per_pixel, const int samples_per_ray, const int max_ray_bounce, const float epsilon, const float ray_eps,
+    const float max_refrac_bounce) {
 
     //initialize a ray allocator
     RayPool* ray_pool = new RayPool(ray_pool_page_size);
@@ -86,6 +87,8 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                     new_render_ray->depth = max_ray_bounce;
                     new_render_ray->contrib = 1;
                     new_render_ray->total_previous_contrib = 0;
+                    new_render_ray->refraci = 1; //assume we start from each pixel in air
+                    new_render_ray->weight = 1;
                     vec3_zero(new_render_ray->c_cache);
                     //add to pool
                     ray_pool->push(new_render_ray);
@@ -110,6 +113,8 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
             //*********************************************
 
             shadow_ray_rec shadow_rec;
+            vec3 weight_sum; //weight sum for averaging colors later
+            vec3_zero(weight_sum);
 
             while (ray_pool->size() != 0) {
                 Ray* ray = ray_pool->pop();
@@ -188,11 +193,18 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                     }
                                     vec3_add(ray->c_cache, ray->c_cache, contrib);
                                     vec3_deep_copy(c, ray->c_cache);
+                                    vec3 weight_add;
+                                    vec3_set_float(weight_add, ray->weight);
+                                    vec3_add(weight_sum, weight_sum, weight_add);
                                     draw_this = true;
                                 }
 
+                                //********************************
+                                // REFLECT RAYS
+                                //********************************
+
                                 //generate subrays for reflectivity rendering
-                                else if (ray->depth > 0 && mesh->material->use_reflectivity) {
+                                else if (ray->depth > 0 && mesh->material->use_reflectivity && !mesh->material->use_refractivity) {
 
                                     //**********************************************
                                     //PROCESSING OF THIS RAY'S COLOR CONTRIBUTION
@@ -229,7 +241,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                     rr->id = ray_id;
                                     rr->depth = ray->depth - 1;
                                     rr->type = ray_type::reflect;
-                                    ray->reflect(rec.norm, rec.t, epsilon, *rr);
+                                    ray->reflect(rec.norm, rec.t, *rr);
                                     vec3_deep_copy(rr->c_cache, ray->c_cache);
                                     rr->sh_cache = ray->sh_cache;
                                     rr->contrib = ray->contrib;
@@ -271,11 +283,129 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                                 }
 
                                 //if depth depleted on a render ray then just calculate shade (base case)
-                                else if (ray->depth == 0 && mesh->material->use_reflectivity) {
+                                else if (ray->depth <= 0 && mesh->material->use_reflectivity && !mesh->material->use_refractivity) {
                                     //figure out the nonreflective color contribution of this hit ray (not the subray)
                                     vec3_deep_copy(c, ray->c_cache);
+                                    vec3 weight_add;
+                                    vec3_set_float(weight_add, ray->weight);
+                                    vec3_add(weight_sum, weight_sum, weight_add);
                                     draw_this = true;
                                 }
+
+                                //*******************************
+                                // REFRAC RAYS
+                                //*******************************
+
+                                //recursive case for a refractive material's shading rays
+                                else if (ray->depth > 0 && mesh->material->use_refractivity) {
+                                    RefracMat* mat = (RefracMat*)mesh->material;
+                                    //figure out color cache for this ray, apply beer's law if it's in the material
+                                    vec3 c_add;
+                                    if (ray->refraci == mesh->material->refractivity) {
+                                        float ar = mat->transp_c[0];
+                                        float ag = mat->transp_c[1];
+                                        float ab = mat->transp_c[2];
+                                        c_add[0] = ar * exp(-ar * rec.t);
+                                        c_add[1] = ag * exp(-ag * rec.t);
+                                        c_add[2] = ab * exp(-ab * rec.t);
+                                    }
+                                    else {
+                                        c_add[0] = 1;
+                                        c_add[1] = 1;
+                                        c_add[2] = 1;
+                                    }
+
+                                    //assign reflect ray
+                                    Ray* reflect_ray = (Ray*)malloc(sizeof(Ray));
+                                    reflect_ray->contrib = 1;
+                                    reflect_ray->type = ray_type::refractive;
+                                    if (ray->refraci == 1) {
+                                        reflect_ray->depth = max_ray_bounce;
+                                        reflect_ray->refraci = 1;
+                                    }
+                                    else {
+                                        reflect_ray->depth = ray->depth - 1;
+                                        reflect_ray->refraci = mesh->material->refractivity;
+                                    }
+
+                                    //figure out refrac ray
+                                    Ray* refrac_ray = (Ray*)malloc(sizeof(Ray));
+                                    refrac_ray->type = ray_type::refractive;
+                                    refrac_ray->contrib = 1;
+                                    //base and recurive cases for refrac ray depth
+                                    if (ray->refraci == 1) refrac_ray->depth = max_refrac_bounce;
+                                    else refrac_ray->depth = ray->depth - 1;
+                                    refrac_ray->refraci = mesh->material->refractivity; //cache the refrac ray's refract index
+                                    if (refrac_ray->refraci == ray->refraci) vec3_mul_float(rec.norm, rec.norm, -1); //reverse the norm if we are in the same refrac material for front and back face
+
+                                    //figure out reflect ray
+                                    ray->reflect(rec.norm, rec.t, *reflect_ray);
+                                    float r_theta = ray->refrac(rec.norm, ray->refraci, mesh->material->refractivity, rec.t, *refrac_ray);
+
+                                    //if total internal reflect just produce reflect ray
+                                    if (r_theta <= 0) {
+                                        free(refrac_ray); //we don't need to refrac in this case
+                                        reflect_ray->weight = ray->weight; //set reflection to directly inherit parent weight
+                                        vec3_fraction(reflect_ray->c_cache, ray->c_cache, c_add);
+                                        ray_pool->push(reflect_ray);
+
+                                        //we create and store one more shadow ray here to calculate the subray's shadow factor on the run
+                                        Ray* new_shadow_ray = (Ray*)malloc(sizeof(Ray));
+                                        new_shadow_ray->id = ray_id;
+                                        new_shadow_ray->type = ray_type::shadow;
+                                        vec3_deep_copy(new_shadow_ray->e, reflect_ray->e);
+                                        vec3_deep_copy(new_shadow_ray->d, reflect_ray->d);
+                                        //we signal this kind of shadow ray to be depth -1 because we don't want to draw it
+                                        new_shadow_ray->depth = -1;
+                                        ray_pool->push(new_shadow_ray);
+                                    }
+                                    //else send both refrac and reflect rays into stack
+                                    else {
+                                        //split the weight first
+                                        reflect_ray->weight = r_theta * ray->weight;
+                                        refrac_ray->weight = (1 - r_theta) * ray->weight;
+                                        //record color cache
+                                        vec3_fraction(reflect_ray->c_cache, ray->c_cache, c_add);
+                                        vec3_mul_float(reflect_ray->c_cache, reflect_ray->c_cache, r_theta);
+                                        ray_pool->push(reflect_ray);
+
+                                        //we create and store one more shadow ray here to calculate the subray's shadow factor on the run
+                                        Ray* new_shadow_ray = (Ray*)malloc(sizeof(Ray));
+                                        new_shadow_ray->id = ray_id;
+                                        new_shadow_ray->type = ray_type::shadow;
+                                        vec3_deep_copy(new_shadow_ray->e, reflect_ray->e);
+                                        vec3_deep_copy(new_shadow_ray->d, reflect_ray->d);
+                                        //we signal this kind of shadow ray to be depth -1 because we don't want to draw it
+                                        new_shadow_ray->depth = -1;
+                                        ray_pool->push(new_shadow_ray);
+
+                                        vec3_fraction(refrac_ray->c_cache, ray->c_cache, c_add);
+                                        vec3_mul_float(refrac_ray->c_cache, refrac_ray->c_cache, 1 - r_theta);
+                                        ray_pool->push(refrac_ray);
+
+                                        //we create and store one more shadow ray here to calculate the subray's shadow factor on the run
+                                        Ray* new_rshadow_ray = (Ray*)malloc(sizeof(Ray));
+                                        new_rshadow_ray->id = ray_id;
+                                        new_rshadow_ray->type = ray_type::shadow;
+                                        vec3_deep_copy(new_rshadow_ray->e, refrac_ray->e);
+                                        vec3_deep_copy(new_rshadow_ray->d, refrac_ray->d);
+                                        //we signal this kind of shadow ray to be depth -1 because we don't want to draw it
+                                        new_rshadow_ray->depth = -1;
+                                        ray_pool->push(new_rshadow_ray);
+                                    }
+
+                                    draw_this = false;
+                                }
+
+                                //base case for a refractive material's shading ray
+                                else if (ray->depth <= 0 && mesh->material->use_refractivity) {
+                                    vec3_deep_copy(c, ray->c_cache);
+                                    vec3 weight_add;
+                                    vec3_set_float(weight_add, ray->weight);
+                                    vec3_add(weight_sum, weight_sum, weight_add);
+                                    draw_this = true;
+                                }
+
                             }
                         }
                     }
@@ -286,6 +416,16 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                     //case when we should draw a ray that's reflected but hit nothing
                     if (ray->type == ray_type::reflect && ray->depth < max_ray_bounce) {
                         vec3_deep_copy(c, ray->c_cache);
+                        vec3 weight_add;
+                        vec3_set_float(weight_add, ray->weight);
+                        vec3_add(weight_sum, weight_sum, weight_add);
+                        draw_this = true;
+                    }
+                    else if (ray->type == ray_type::refractive && ray->depth < max_refrac_bounce) {
+                        vec3_deep_copy(c, ray->c_cache);
+                        vec3 weight_add;
+                        vec3_set_float(weight_add, ray->weight);
+                        vec3_add(weight_sum, weight_sum, weight_add);
                         draw_this = true;
                     }
                 }
@@ -342,7 +482,7 @@ void RenderThread::operator()(Rasterizer* rasterizer, AABBTree& aabb_tree, Camer
                 //    cs.push_back(r);
             }
 
-            rasterizer->setColor(i, j, cs);
+            rasterizer->setColor(i, j, cs, weight_sum);
         }
     }
     delete ray_pool;

@@ -101,13 +101,14 @@ vector<Camera*> cams;
 
 //ray parameters
 float set_hfov = 54.43; //horizontal fov of the camera, default to maya standard default 54.43
-float epsilon = 0.001f; //epsilon to add to next ray for avoiding self collision
+float epsilon = 0.0001f; //epsilon to add to next ray for avoiding self collision
 float ray_eps = 0.1f; //epsilon to jitter the splitted ray, hight means more random and soft results
 int samples_per_pixel = 2; //sample monte carlo rays per pixel width, defaulted to 2, actual sample number is its square
 int samples_per_ray = 4; //sample rays per parent ray, defaulted to 4, actual number will be this number plus one
 int ray_pool_page_size = 64; //page size for the ray allocator
 int thread_n = ceil(fast_sqrt(thread::hardware_concurrency())); //concurrent thread numbers when rendering the scene (set to match cpu core amounts), actual thread num is this num squared and plus some
 int max_ray_bounce = 3; //maximum bounce time of a ray
+int max_refrac_bounce = 3; //maximum bounce time of a refractive ray
 
 Rasterizer rasterizer = Rasterizer(Width_global, Height_global); //a single rasterizer pipeline (TODO: enable multi-pipeline rendering for quicker rerender)
 //rasterizer parameters
@@ -235,7 +236,7 @@ void retrieve_files(const string& pathname, vector<string>& filenames) {
     }
 }
 
-//function to retireve a node's global transform matrix in a scene
+//function to retrieve a node's global transform matrix in a scene
 void retrieve_node_gtrans(aiMatrix4x4& out, const aiScene* scene, const char* node_name) {
     aiNode* this_node = scene->mRootNode->FindNode(node_name);
     //traverse through hierachy to get all transform matrices
@@ -336,6 +337,15 @@ bool load_scene(const string& dir) {
         else if (strstr(aimesh_mat->GetName().C_Str(), "phong") != NULL) {
             mesh_mat = new PhongMat(aimesh_mat);
             logprintf("Associated this mesh with phong material: %s\n", aimesh_mat->GetName().C_Str());
+        }
+        else if (strstr(aimesh_mat->GetName().C_Str(), "refrac") != NULL) {
+            mesh_mat = new RefracMat(aimesh_mat);
+            logprintf("Associated this mesh with simple refractive material: %s\n", aimesh_mat->GetName().C_Str());
+        }
+        //if not material is specified, just assign a yellow hittest mat
+        else {
+            mesh_mat = new Material();
+            logprintf("Can't find a proper material defined for this material, using default: %s\n", aimesh_mat->GetName().C_Str());
         }
         //store
         Mesh* new_mesh = new Mesh(mesh, mesh_mat);
@@ -486,7 +496,7 @@ void renderFrame(GLFWwindow* window) {
                     const int endY = startY + block_len - cbj / cj * (cbj % cj);
                     render_threads.push_back(thread(RenderThread(), &rasterizer, *aabb_tree, use_cam, lights, 
                         startX, startY, endX, endY,
-                        ray_pool_page_size, set_hfov, samples_per_pixel, samples_per_ray, max_ray_bounce, epsilon, ray_eps));
+                        ray_pool_page_size, set_hfov, samples_per_pixel, samples_per_ray, max_ray_bounce, epsilon, ray_eps, max_refrac_bounce));
                 }
             }
 

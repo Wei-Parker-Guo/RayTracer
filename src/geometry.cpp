@@ -333,9 +333,11 @@ Mesh::Mesh(const aiMesh* mesh, Material* mat) {
         //read norm
         aivec_to_vec3(vert->norm, mesh->mNormals[i]);
         //read uv
-        aiVector3D uvs = mesh->mTextureCoords[0][i];
-        vert->uv[0] = uvs.x;
-        vert->uv[1] = uvs.y;
+        if (mesh->HasTextureCoords(0)) {
+            aiVector3D uvs = mesh->mTextureCoords[0][i];
+            vert->uv[0] = uvs.x;
+            vert->uv[1] = uvs.y;
+        }
         this->vertices.push_back(vert);
     }
     //record faces

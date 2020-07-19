@@ -85,7 +85,7 @@ void Rasterizer::resize(const float width, const float height) {
 	
 }
 
-void Rasterizer::setColor(const int x, const int y, const colorseq& cseq) {
+void Rasterizer::setColor(const int x, const int y, const colorseq& cseq, const vec3 weight_sum) {
 	//average the colors
 	vec3 c;
 	vec3_zero(c);
@@ -94,7 +94,7 @@ void Rasterizer::setColor(const int x, const int y, const colorseq& cseq) {
 		color_to_vec3(c_n, cseq.at(i));
 		vec3_add(c, c, c_n);
 	}
-	vec3_scale(c, c, 1.0f / (float) cseq.size());
+	vec3_divide(c, c, weight_sum);
 
 	//record
 	color r;

@@ -34,7 +34,7 @@ void Ray::get_point(const float t, vec3 p) const {
     vec3_add(p, e, p);
 }
 
-void Ray::reflect(const vec3 norm, const float t, const float epsilon, Ray& ray) {
+void Ray::reflect(const vec3 norm, const float t, Ray& ray) {
     //figure out reflect direction
     vec3_reflect(ray.d, this->d, norm);
 
@@ -58,4 +58,30 @@ void Ray::split(std::vector<Ray*> out_rays, const int n, const float epsilon) {
         vec3_deep_copy(ray->e, this->e);
         ray->id = this->id;
     }
+}
+
+float Ray::refrac(const vec3 norm, const float n, const float nt, const float t, Ray& ray) {
+    //copy origin
+    vec3 ppos;
+    this->get_point(t, ppos);
+    vec3_deep_copy(ray.e, ppos);
+
+    //figure out fresnel term first, if result is negative then shortcircuit this function (total internal reflection)
+    float r0 = sqr((nt - 1) / (nt + 1));
+    float r_theta = r0 + (1 - r0) * fast_pow(1 - vec3_mul_inner(this->d, norm), 5);
+    if (r_theta < 0) return r_theta; //total internal reflection
+
+    //figure out direction (normalized)
+    vec3 term1;
+    vec3 term2;
+    //first term
+    vec3_mul_float(term1, norm, -1 * vec3_mul_inner(this->d, norm));
+    vec3_add(term1, this->d, term1);
+    vec3_mul_float(term1, term1, n / nt);
+    //second term
+    vec3_mul_float(term2, norm, sqrt(1 - sqr(n / nt) * (1 - sqr(vec3_mul_inner(d, norm)))));
+    //cascade into return dir and normalize
+    vec3_sub(ray.d, term1, term2);
+    vec3_norm(ray.d, ray.d);
+    return r_theta;
 }

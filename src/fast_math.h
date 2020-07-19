@@ -43,4 +43,10 @@ void aivec_to_vec3(vec3 r, const aiVector3D& v);
 //function to deep copy an aiColor into vec3
 void aicolor_to_vec3(vec3 r, const aiColor3D& c);
 
+//function to set xyz to a float for a vec3
+void vec3_set_float(vec3 r, const float f);
+
+//function to divide a vec3 linearly with another vec3
+void vec3_divide(vec3 r, const vec3 a, const vec3 b);
+
 #endif

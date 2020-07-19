@@ -70,3 +70,15 @@ void aicolor_to_vec3(vec3 r, const aiColor3D& c) {
     r[1] = c.g;
     r[2] = c.b;
 }
+
+void vec3_set_float(vec3 r, const float f) {
+    r[0] = f;
+    r[1] = f;
+    r[2] = f;
+}
+
+void vec3_divide(vec3 r, const vec3 a, const vec3 b) {
+    r[0] = a[0] / b[0];
+    r[1] = a[1] / b[1];
+    r[2] = a[2] / b[2];
+}
