@@ -104,6 +104,23 @@ Wei Guo: wei.parker.guo.sg@gmail.com
 	Resolution: 1920 X 1080<br/>
 </p>
 
+6. Render result of a bunch of bunnies with different materials:
+
+<p align="center">
+  <img src="docs&images/render_result_bunnies.jpg">
+</p>
+
+<p align="center">
+	Samples per pixel: 4<br/>
+	Samples per ray: 5<br/>
+	Epsilon: 0.001000<br/>
+	Ray Jitter Epsilon: 0.100000<br/>
+	Max bounces: 3<br/>
+	Max refractive bounces: 3<br/>
+	Field of view: 54.50<br/>
+	Resolution: 1920 X 1080<br/>
+</p>
+
 # USAGE
 This project is platform independant and uses cmake to build. You do need an **Nvidia GTX GPU** if you plan to build the Cuda version.
 
